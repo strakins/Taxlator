@@ -1,0 +1,43 @@
+const tintColorLight = '#1e40af';
+const tintColorDark = '#60a5fa';
+
+export default {
+  light: {
+    text: '#1e293b',
+    background: '#ffffff',
+    tint: tintColorLight,
+    tabIconDefault: '#64748b',
+    tabIconSelected: tintColorLight,
+    primary: '#1e40af',
+    secondary: '#059669',
+    accent: '#10b981',
+    error: '#dc2626',
+    warning: '#f59e0b',
+    success: '#059669',
+    card: '#f8fafc',
+    border: '#e2e8f0',
+    secondaryText: '#64748b',
+    placeholder: '#94a3b8',
+    nairaGreen: '#059669',
+    nairaLightGreen: '#d1fae5',
+  },
+  dark: {
+    text: '#f1f5f9',
+    background: '#0f172a',
+    tint: tintColorDark,
+    tabIconDefault: '#94a3b8',
+    tabIconSelected: tintColorDark,
+    primary: '#60a5fa',
+    secondary: '#10b981',
+    accent: '#34d399',
+    error: '#f87171',
+    warning: '#fbbf24',
+    success: '#10b981',
+    card: '#1e293b',
+    border: '#334155',
+    secondaryText: '#cbd5e1',
+    placeholder: '#64748b',
+    nairaGreen: '#10b981',
+    nairaLightGreen: '#064e3b',
+  },
+};
