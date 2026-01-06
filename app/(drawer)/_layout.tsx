@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import Colors from '@/constants/Colors';
-import Ionicons from '@expo/vector-icons/Ionicons'
 
 // Custom drawer content component
 function CustomDrawerContent(props: any) {
@@ -123,10 +122,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-  },
-  appSubtitle: {
-    fontSize: 14,
-    color: '#dbeafe',
   },
   drawerItems: {
     paddingTop: 10,

@@ -1,263 +1,253 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Animated,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme || 'light'];
+import { styles, Colors } from '../../constants/landingpagestyles';
+
+/* -----------------------------
+   SKELETON PLACEHOLDER
+-------------------------------- */
+const Skeleton = ({ height = 16 }: { height?: number }) => (
+  <View
+    style={{
+      height,
+      backgroundColor: Colors.border,
+      borderRadius: 6,
+      marginVertical: 6,
+    }}
+  />
+);
+
+export default function Index() {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(24)).current;
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setTimeout(() => setLoading(false), 1200);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <LinearGradient
-          colors={colorScheme === 'dark' ? ['#1e293b', '#334155'] : ['#1e40af', '#3b82f6']}
-          style={styles.heroSection}
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ================= HERO ================= */}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
         >
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>Taxlator</Text>
-            <Text style={styles.heroSubtitle}>
-              Naira Tax Calculator
-            </Text>
-            <Text style={styles.heroDescription}>
-              Calculate your Nigerian personal income tax accurately and effortlessly
-            </Text>
-            
-            <TouchableOpacity
-              style={[styles.getStartedButton, { backgroundColor: colors.background }]}
-              onPress={() => router.push('/calculator')}
-            >
-              <Text style={[styles.getStartedText, { color: colors.primary }]}>
-                Get Started
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+          <View style={styles.hero}>
+            <Image
+              source={require('../../assets/images/tax-hero.jpg')}
+              style={styles.heroImage}
+            />
 
-        {/* Features Section */}
-        <View style={[styles.featuresSection, { backgroundColor: colors.background }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Key Features
-          </Text>
-          
-          <View style={styles.featureGrid}>
-            {[
-              {
-                emoji: '🧮',
-                title: 'Nigeria Tax System',
-                description: 'Calculations based on Nigeria Personal Income Tax Act'
-              },
-              {
-                emoji: '₦',
-                title: 'Naira Currency',
-                description: 'All calculations in Nigerian Naira (₦)'
-              },
-              {
-                emoji: '📊',
-                title: 'Detailed Breakdown',
-                description: 'See exactly how your tax is calculated'
-              },
-              {
-                emoji: '📱',
-                title: 'Save History',
-                description: 'Track all your previous calculations'
-              },
-            ].map((feature, index) => (
-              <View 
-                key={index} 
-                style={[styles.featureCard, { backgroundColor: colors.card }]}
-              >
-                <View style={[styles.featureIcon, { backgroundColor: colors.tint + '20' }]}>
-                  <Text style={styles.featureIconText}>{feature.emoji}</Text>
-                </View>
-                <Text style={[styles.featureTitle, { color: colors.text }]}>
-                  {feature.title}
-                </Text>
-                <Text style={[styles.featureDescription, { color: colors.secondaryText }]}>
-                  {feature.description}
-                </Text>
-              </View>
-            ))}
           </View>
-        </View>
 
-        {/* Quick Actions */}
-        <View style={[styles.quickActions, { backgroundColor: colors.background }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Quick Actions
-          </Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/calculator')}
-            >
-              <Text style={styles.actionButtonText}>Calculate Tax Now</Text>
+            <TouchableOpacity style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Calculate Tax</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
-              onPress={() => router.push('/history')}
-            >
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>
-                View History
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </Animated.View>
 
-        {/* About Section */}
-        <View style={[styles.aboutSection, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            About Taxlator
+        {/* ================= HOW IT WORKS ================= */}
+        <Section
+          title="How It Works?"
+          subtitle="Just three steps to calculate your tax"
+        >
+          {loading ? (
+            <>
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+              <Skeleton height={90} />
+            </>
+          ) : (
+            <>
+              <StepCard
+                step="1"
+                title="Choose Your Tax Type"
+                description="Select from PAYE, Annual PIT, Freelancer, VAT or Company Income Tax."
+                // icon="file-document-outline"
+              />
+              <StepCard
+                step="2"
+                title="Enter Income & Deductions"
+                description="Input your gross income and any eligible deductions."
+              />
+              <StepCard
+                step="3"
+                title="See Tax Breakdown Instantly"
+                description="Get detailed results showing exactly how your tax was calculated."
+              />
+            </>
+          )}
+        </Section>
+
+        {/* ================= LATEST TIPS ================= */}
+        <Section
+          title="Latest Tax Tips & Updates"
+          subtitle="Stay informed with helpful tax guides and insights"
+        >
+          <InfoCard
+            tag="PAYE"
+            title="Understanding PAYE Tax Bands in Nigeria"
+            description="Learn how progressive tax rates from 7% to 24% apply to your income."
+          />
+
+          <InfoCard
+            tag="Freelancer"
+            title="Tax Tips for Freelancers & Self-Employed"
+            description="Discover allowable expenses and ways to optimize tax payments."
+          />
+
+          <InfoCard
+            tag="CIT"
+            title="Company Income Tax Explained"
+            description="Rates, allowable deductions, and compliance requirements for businesses."
+          />
+        </Section>
+
+        {/* ================= ABOUT ================= */}
+        <Section
+          title="About"
+          subtitle="Essential facts every Nigerian taxpayer should know"
+        >
+          <FeatureCard
+            icon="timer-outline"
+            title="Accurate Calculations"
+            description="Powered by the latest Nigerian tax rules to ensure dependable results."
+          />
+
+          <FeatureCard
+            icon="bar-chart-outline"
+            title="Instant Salary Breakdown"
+            description="See how deductions affect your take-home pay instantly."
+          />
+
+          <FeatureCard
+            icon="people-outline"
+            title="Perfect for workers, students, freelancers & businesses"
+            description="Ideal for workers, students, freelancers, and businesses."
+          />
+
+          <FeatureCard
+            icon="sparkles"
+            title="Simple, Beautiful & Easy"
+            description="Designed to remove confusion and make tax calculations effortless."
+          />
+        </Section>
+
+        {/* ================= CTA ================= */}
+        <View style={styles.cta}>
+          <Text style={styles.ctaTitle}>Ready to Get Started?</Text>
+          <Text style={styles.ctaText}>
+            Start calculating your taxes now. No signup required.
+            Save calculations with a free account (optional).
           </Text>
-          <Text style={[styles.aboutText, { color: colors.secondaryText }]}>
-            Taxlator is designed specifically for Nigerian taxpayers. Whether you're 
-            a salary earner, freelancer, or business owner, our app provides accurate 
-            tax estimates based on Nigeria's progressive tax system.
-          </Text>
-          <Text style={[styles.aboutText, { color: colors.secondaryText }]}>
-            All calculations are performed locally on your device - your financial 
-            data never leaves your phone.
-          </Text>
+
+          <TouchableOpacity style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Calculate Now</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  heroSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  heroContent: {
-    alignItems: 'center',
-  },
-  heroTitle: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 20,
-    color: '#dbeafe',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  heroDescription: {
-    fontSize: 16,
-    color: '#93c5fd',
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  getStartedButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  getStartedText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  featuresSection: {
-    padding: 20,
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  featureGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  featureCard: {
-    width: '48%',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    alignItems: 'center',
-  },
-  featureIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  featureIconText: {
-    fontSize: 24,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  featureDescription: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  quickActions: {
-    padding: 20,
-    marginBottom: 20,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  aboutSection: {
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 40,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  aboutText: {
-    fontSize: 14,
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-});
+/* -----------------------------
+   REUSABLE COMPONENTS
+-------------------------------- */
+const Section = ({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+    <View style={{ marginTop: 12 }}>{children}</View>
+  </View>
+);
+
+const StepCard = ({
+  step,
+  title,
+  description,
+}: {
+  step: string;
+  title: string;
+  description: string;
+}) => (
+  <View style={styles.stepCard}>
+    <View style={styles.stepCircle}>
+      <Text style={styles.stepText}>{step}</Text>
+    </View>
+
+
+    <Text style={styles.cardTitle}>{title}</Text>
+    <Text style={styles.cardText}>{description}</Text>
+  </View>
+);
+
+const InfoCard = ({
+  tag,
+  title,
+  description,
+}: {
+  tag: string;
+  title: string;
+  description: string;
+}) => (
+  <View style={styles.infoCard}>
+    <Text style={styles.infoTag}>{tag}</Text>
+    <Text style={styles.cardTitle}>{title}</Text>
+    <Text style={styles.cardText}>{description}</Text>
+    <Text style={styles.readMore}>Read more →</Text>
+  </View>
+);
+
+const FeatureCard = ({
+  icon,
+  title,
+  description,
+}: {
+  icon: any;
+  title: string;
+  description: string;
+}) => (
+  <View style={styles.featureCard}>
+    <Ionicons name={icon} size={22} color={Colors.secondary} />
+    <View style={{ marginLeft: 10 }}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      <Text style={styles.cardText}>{description}</Text>
+    </View>
+  </View>
+);
