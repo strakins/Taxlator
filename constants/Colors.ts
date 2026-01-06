@@ -41,3 +41,4 @@ export default {
     nairaLightGreen: '#064e3b',
   },
 };
+
