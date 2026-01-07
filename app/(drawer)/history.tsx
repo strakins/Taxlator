@@ -1,4 +1,13 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+} from 'react-native';
+import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
 
 const mockHistory = [
   {
@@ -6,7 +15,7 @@ const mockHistory = [
     income: 750000,
     tax: 68250,
     netIncome: 681750,
-    date: '2024-01-15',
+    date: 'Jan 15, 2024',
     timestamp: '10:30 AM',
   },
   {
@@ -14,7 +23,7 @@ const mockHistory = [
     income: 1200000,
     tax: 175500,
     netIncome: 1024500,
-    date: '2024-01-14',
+    date: 'Feb 14, 2024',
     timestamp: '02:45 PM',
   },
   {
@@ -22,144 +31,217 @@ const mockHistory = [
     income: 500000,
     tax: 13000,
     netIncome: 487000,
-    date: '2024-01-13',
+    date: 'Jun 13, 2024',
     timestamp: '09:15 AM',
   },
 ];
 
 export default function HistoryScreen() {
-  const renderHistoryItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.historyCard}>
-      <View style={styles.historyHeader}>
-        <Text style={styles.historyDate}>{item.date}</Text>
-        <Text style={styles.historyTime}>{item.timestamp}</Text>
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleReturnHome = () => {
+      router.push('/')
+    }
+
+  
+  const filteredHistory = useMemo(() => {
+    if (!searchQuery.trim()) return mockHistory;
+
+    const query = searchQuery.toLowerCase();
+
+    return mockHistory.filter((item) => {
+      return (
+        item.date.toLowerCase().includes(query) ||
+        item.timestamp.toLowerCase().includes(query) ||
+        item.income.toString().includes(query) ||
+        item.tax.toString().includes(query) ||
+        item.netIncome.toString().includes(query)
+      );
+    });
+  }, [searchQuery]);
+
+  const renderHistoryItem = ({ item }: any) => (
+    <TouchableOpacity style={styles.historyCard} activeOpacity={0.85}>
+      <View style={styles.cardRow}>
+        <Text style={styles.label}>Income</Text>
+        <Text style={styles.value}>₦{item.income.toLocaleString()}</Text>
       </View>
-      
-      <View style={styles.historyDetails}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Income:</Text>
-          <Text style={styles.detailValue}>₹{item.income.toLocaleString()}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Tax:</Text>
-          <Text style={[styles.detailValue, styles.taxValue]}>
-            ₹{item.tax.toLocaleString()}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Net Income:</Text>
-          <Text style={[styles.detailValue, styles.netValue]}>
-            ₹{item.netIncome.toLocaleString()}
-          </Text>
-        </View>
+
+      <View style={styles.cardRow}>
+        <Text style={styles.label}>Tax</Text>
+        <Text style={[styles.value, styles.tax]}>
+          ₦{item.tax.toLocaleString()}
+        </Text>
+      </View>
+
+      <View style={styles.cardRow}>
+        <Text style={styles.label}>Net Income</Text>
+        <Text style={[styles.value, styles.net]}>
+          ₦{item.netIncome.toLocaleString()}
+        </Text>
+      </View>
+
+      <View style={styles.cardFooter}>
+        <Text style={styles.date}>{item.date}</Text>
+        <Text style={styles.time}>{item.timestamp}</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Calculation History</Text>
-      
-      {mockHistory.length === 0 ? (
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleReturnHome} style={styles.backButton}>
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.title}>TAX CALCULATIONS HISTORY</Text>
+        <Text style={styles.subtitle}>
+          Track and compare your past tax calculations
+        </Text>
+      </View>
+
+      <TextInput
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="search for your recent calculations"
+        placeholderTextColor="#9ca3af"
+        style={styles.searchInput}
+        autoCorrect={false}
+        clearButtonMode="while-editing"
+      />
+
+      {filteredHistory.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No calculations yet</Text>
-          <Text style={styles.emptyStateSubtext}>
-            Your tax calculations will appear here
-          </Text>
+          <Text style={styles.emptyText}>No matching results</Text>
         </View>
       ) : (
         <FlatList
-          data={mockHistory}
+          data={filteredHistory}
           renderItem={renderHistoryItem}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 24 }}
         />
       )}
     </View>
   );
 }
 
+
+
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
-    padding: 20,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 16,
   },
+
+  header: {
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 20,
+  },
+
+  backButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e5e5e5',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+
+  backText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 24,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+    textAlign: 'center',
   },
-  listContainer: {
-    paddingBottom: 20,
+
+  subtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
   },
+
+  searchInput: {
+    backgroundColor: '#e6e6e6',
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    fontSize: 14,
+    color: '#111827',
+    marginBottom: 20,
+  },
+
   historyCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  historyHeader: {
+
+  cardRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    marginBottom: 8,
   },
-  historyDate: {
-    fontSize: 16,
+
+  label: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+
+  value: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#111827',
   },
-  historyTime: {
-    fontSize: 14,
-    color: '#64748b',
+
+  tax: {
+    color: '#dc2626',
   },
-  historyDetails: {
-    gap: 8,
+
+  net: {
+    color: '#16a34a',
   },
-  detailRow: {
+
+  cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
-  detailLabel: {
-    fontSize: 14,
-    color: '#64748b',
+
+  date: {
+    fontSize: 12,
+    color: '#6b7280',
   },
-  detailValue: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1e293b',
+
+  time: {
+    fontSize: 12,
+    color: '#6b7280',
   },
-  taxValue: {
-    color: '#ef4444',
-  },
-  netValue: {
-    color: '#10b981',
-  },
+
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 40,
   },
-  emptyStateText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
+
+  emptyText: {
+    color: '#9ca3af',
+    fontSize: 16,
   },
 });
