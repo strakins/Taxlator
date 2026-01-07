@@ -1,3 +1,4 @@
+import Colors from "@/constants/Colors";
 import {
   DrawerContentScrollView,
   DrawerItemList,
@@ -6,8 +7,6 @@ import { useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
 import { StyleSheet, Text, useColorScheme, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import Colors from "@/constants/Colors";
 
 // Custom drawer content component
 function CustomDrawerContent(props: any) {
@@ -127,10 +126,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: "white",
-  },
-  appSubtitle: {
-    fontSize: 14,
-    color: "#dbeafe",
   },
   drawerItems: {
     paddingTop: 10,
