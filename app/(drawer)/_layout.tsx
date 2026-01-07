@@ -1,18 +1,15 @@
 import Colors from "@/constants/Colors";
+import { Ionicons } from "@expo/vector-icons";
 import {
   DrawerContentScrollView,
   DrawerItemList,
 } from "@react-navigation/drawer";
-import { useRouter } from "expo-router";
 import { Drawer } from "expo-router/drawer";
-import { StyleSheet, Text, useColorScheme, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 
-// Custom drawer content component
+// Custom drawer content
 function CustomDrawerContent(props: any) {
-  const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme || "light"];
+  const colors = Colors.light; // force light drawer
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -20,16 +17,6 @@ function CustomDrawerContent(props: any) {
         {...props}
         contentContainerStyle={{ paddingTop: 0 }}
       >
-        {/* Drawer Header */}
-        <View
-          style={[styles.drawerHeader, { backgroundColor: colors.primary }]}
-        >
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoIcon}>💰</Text>
-            <Text style={styles.appTitle}>Taxlator</Text>
-          </View>
-        </View>
-
         {/* Drawer Items */}
         <View style={styles.drawerItems}>
           <DrawerItemList {...props} />
@@ -46,9 +33,9 @@ function CustomDrawerContent(props: any) {
   );
 }
 
+// Main Drawer Layout
 export default function Layout() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme || "light"];
+  const colors = Colors.light; // force light mode
 
   return (
     <Drawer
@@ -56,10 +43,16 @@ export default function Layout() {
       screenOptions={{
         drawerActiveTintColor: colors.primary,
         drawerInactiveTintColor: colors.text,
+        drawerActiveBackgroundColor: "#e0e7ff", // visible background for active item
+        drawerItemStyle: {
+          borderRadius: 10,
+          marginHorizontal: 8,
+          marginVertical: 4,
+        },
         drawerLabelStyle: {
           fontSize: 16,
           fontWeight: "500",
-          marginLeft: -16,
+          marginLeft: 0,
         },
         drawerStyle: {
           backgroundColor: colors.background,
@@ -74,32 +67,67 @@ export default function Layout() {
         },
       }}
     >
+      {/* Home */}
       <Drawer.Screen
         name="index"
         options={{
           drawerLabel: "Home",
           title: "Taxlator",
+          drawerIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
+
+      {/* Calculator */}
       <Drawer.Screen
         name="calculator"
         options={{
           drawerLabel: "Tax Calculator",
-          title: "Tax Calculator",
+          title: "Calculator",
+          drawerIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "calculator" : "calculator-outline"}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
+
+      {/* History */}
       <Drawer.Screen
-        name="history/index"
+        name="history"
         options={{
           drawerLabel: "History",
           title: "Calculation History",
+          drawerIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "time" : "time-outline"}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
+
+      {/* Profile */}
       <Drawer.Screen
-        name="profile/index"
+        name="profile"
         options={{
           drawerLabel: "Profile",
           title: "Profile & Settings",
+          drawerIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "person" : "person-outline"}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
     </Drawer>
@@ -108,24 +136,15 @@ export default function Layout() {
 
 const styles = StyleSheet.create({
   drawerHeader: {
-    padding: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  logoContainer: {
-    flexDirection: "row",
+    padding: 20,
+    paddingTop: 40,
     alignItems: "center",
-    marginBottom: 8,
-  },
-  logoIcon: {
-    fontSize: 28,
-    marginRight: 12,
-    color: "white",
+    marginBottom: 10,
   },
   appTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "white",
+    color: "#fff",
   },
   drawerItems: {
     paddingTop: 10,
