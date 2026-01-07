@@ -3,44 +3,52 @@ import {
   DrawerItemList,
   DrawerItem,
 } from '@react-navigation/drawer';
-import { View, Text, StyleSheet, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Colors from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons/Ionicons';
+
 
 export function DrawerContent(props: any) {
-  const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme || 'light'];
+  // Force drawer to LIGHT mode
+  const colors = Colors.light;
 
   return (
-    <DrawerContentScrollView 
+    <DrawerContentScrollView
       {...props}
+      contentContainerStyle={{ flex: 1 }}
       style={{ backgroundColor: colors.background }}
     >
-      <View style={styles.drawerHeader}>
-        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-          <Text style={styles.avatarText}>T</Text>
-        </View>
-        <Text style={[styles.appName, { color: colors.text }]}>Taxlator</Text>
-        <Text style={[styles.appTagline, { color: colors.secondaryText }]}>
-          Smart Tax Calculator
-        </Text>
-      </View>
       
+      {/* MAIN NAV ITEMS */}
       <DrawerItemList {...props} />
-      
+
       <View style={styles.divider} />
-      
+
+      {/* EXTRA ITEMS */}
       <DrawerItem
         label="Privacy Policy"
-        onPress={() => console.log('Privacy Policy')}
-        labelStyle={{ color: colors.text }}
+        icon={({ size }) => (
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={size}
+            color={colors.text}
+          />
+        )}
+        labelStyle={styles.drawerLabel}
+        onPress={() => {}}
       />
+
       <DrawerItem
         label="About"
-        onPress={() => console.log('About')}
-        labelStyle={{ color: colors.text }}
+        icon={({ size }) => (
+          <Ionicons
+            name="person-outline"
+            size={size}
+            color={colors.text}
+          />
+        )}
+        labelStyle={styles.drawerLabel}
+        onPress={() => {}}
       />
     </DrawerContentScrollView>
   );
@@ -48,17 +56,16 @@ export function DrawerContent(props: any) {
 
 const styles = StyleSheet.create({
   drawerHeader: {
-    padding: 20,
-    paddingTop: 40,
+    paddingTop: 48,
+    paddingBottom: 24,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
-    marginBottom: 10,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -66,20 +73,25 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#ffffff',
   },
   appName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
   },
   appTagline: {
-    fontSize: 14,
+    fontSize: 13,
+    color: '#64748b',
   },
   divider: {
     height: 1,
     backgroundColor: '#e2e8f0',
-    marginVertical: 10,
+    marginVertical: 12,
     marginHorizontal: 16,
+  },
+  drawerLabel: {
+    fontSize: 15,
+    marginLeft: -16,
   },
 });

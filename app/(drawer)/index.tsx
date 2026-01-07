@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { styles, Colors } from '../../constants/landingpagestyles';
+import { router } from 'expo-router';
 
 /* -----------------------------
    SKELETON PLACEHOLDER
@@ -48,13 +49,17 @@ export default function Index() {
     ]).start();
   }, []);
 
+  const handleCalculatePage = () => {
+    router.push('/calculator')
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ================= HERO ================= */}
+        {/* === HERO === */}
         <Animated.View
           style={{
             opacity: fadeAnim,
@@ -69,7 +74,7 @@ export default function Index() {
 
           </View>
 
-            <TouchableOpacity style={styles.primaryButton}>
+            <TouchableOpacity onPress={handleCalculatePage} style={styles.primaryButton}>
               <Text style={styles.primaryButtonText}>Calculate Tax</Text>
             </TouchableOpacity>
         </Animated.View>
@@ -169,7 +174,7 @@ export default function Index() {
             Save calculations with a free account (optional).
           </Text>
 
-          <TouchableOpacity style={styles.secondaryButton}>
+          <TouchableOpacity onPress={handleCalculatePage} style={styles.secondaryButton}>
             <Text style={styles.secondaryButtonText}>Calculate Now</Text>
           </TouchableOpacity>
         </View>

@@ -85,7 +85,7 @@ primaryButtonText: {
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderWidth: 1,
     borderColor: Colors.border,
   },
