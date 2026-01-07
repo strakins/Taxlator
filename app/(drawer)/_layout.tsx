@@ -1,26 +1,30 @@
-import { Drawer } from 'expo-router/drawer';
-import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
-import Ionicons from '@expo/vector-icons/Ionicons'
+import {
+  DrawerContentScrollView,
+  DrawerItemList,
+} from "@react-navigation/drawer";
+import { useRouter } from "expo-router";
+import { Drawer } from "expo-router/drawer";
+import { StyleSheet, Text, useColorScheme, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import Colors from "@/constants/Colors";
 
 // Custom drawer content component
 function CustomDrawerContent(props: any) {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme || 'light'];
+  const colors = Colors[colorScheme || "light"];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <DrawerContentScrollView 
+      <DrawerContentScrollView
         {...props}
         contentContainerStyle={{ paddingTop: 0 }}
       >
         {/* Drawer Header */}
-        <View style={[styles.drawerHeader, { backgroundColor: colors.primary }]}>
+        <View
+          style={[styles.drawerHeader, { backgroundColor: colors.primary }]}
+        >
           <View style={styles.logoContainer}>
             <Text style={styles.logoIcon}>💰</Text>
             <Text style={styles.appTitle}>Taxlator</Text>
@@ -45,7 +49,7 @@ function CustomDrawerContent(props: any) {
 
 export default function Layout() {
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme || 'light'];
+  const colors = Colors[colorScheme || "light"];
 
   return (
     <Drawer
@@ -55,7 +59,7 @@ export default function Layout() {
         drawerInactiveTintColor: colors.text,
         drawerLabelStyle: {
           fontSize: 16,
-          fontWeight: '500',
+          fontWeight: "500",
           marginLeft: -16,
         },
         drawerStyle: {
@@ -65,38 +69,38 @@ export default function Layout() {
         headerStyle: {
           backgroundColor: colors.primary,
         },
-        headerTintColor: '#fff',
+        headerTintColor: "#fff",
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
         },
       }}
     >
       <Drawer.Screen
         name="index"
         options={{
-          drawerLabel: 'Home',
-          title: 'Taxlator',
+          drawerLabel: "Home",
+          title: "Taxlator",
         }}
       />
       <Drawer.Screen
         name="calculator"
         options={{
-          drawerLabel: 'Tax Calculator',
-          title: 'Tax Calculator',
+          drawerLabel: "Tax Calculator",
+          title: "Tax Calculator",
         }}
       />
       <Drawer.Screen
         name="history/index"
         options={{
-          drawerLabel: 'History',
-          title: 'Calculation History',
+          drawerLabel: "History",
+          title: "Calculation History",
         }}
       />
       <Drawer.Screen
         name="profile/index"
         options={{
-          drawerLabel: 'Profile',
-          title: 'Profile & Settings',
+          drawerLabel: "Profile",
+          title: "Profile & Settings",
         }}
       />
     </Drawer>
@@ -110,23 +114,23 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   logoIcon: {
     fontSize: 28,
     marginRight: 12,
-    color: 'white',
+    color: "white",
   },
   appTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
+    fontWeight: "bold",
+    color: "white",
   },
   appSubtitle: {
     fontSize: 14,
-    color: '#dbeafe',
+    color: "#dbeafe",
   },
   drawerItems: {
     paddingTop: 10,
@@ -137,6 +141,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
