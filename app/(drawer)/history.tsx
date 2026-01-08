@@ -92,7 +92,7 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleReturnHome} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>Home</Text>
         </TouchableOpacity>
 
         <Text style={styles.title}>TAX CALCULATIONS HISTORY</Text>
