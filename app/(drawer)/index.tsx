@@ -6,12 +6,14 @@ import {
   Image,
   TouchableOpacity,
   Animated,
+  StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
+// Using your custom styles and color system
 import { styles, Colors } from '../../constants/landingpagestyles';
-import { router } from 'expo-router';
 
 /* -----------------------------
    SKELETON PLACEHOLDER
@@ -28,9 +30,12 @@ const Skeleton = ({ height = 16 }: { height?: number }) => (
 );
 
 export default function Index() {
+  const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
+
   const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState('2026'); // Default to 2026
 
   useEffect(() => {
     setTimeout(() => setLoading(false), 1200);
@@ -50,8 +55,12 @@ export default function Index() {
   }, []);
 
   const handleCalculatePage = () => {
-    router.push('/calculator')
-  }
+    // Navigates to the calculator and passes the selected year state
+    router.push({
+      pathname: '/calculator',
+      params: { year: selectedYear }
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -59,7 +68,7 @@ export default function Index() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* === HERO === */}
+        {/* === HERO SECTION === */}
         <Animated.View
           style={{
             opacity: fadeAnim,
@@ -71,22 +80,40 @@ export default function Index() {
               source={require('../../assets/images/tax-hero.jpg')}
               style={styles.heroImage}
             />
-
           </View>
 
-            <TouchableOpacity onPress={handleCalculatePage} style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Calculate Tax</Text>
-            </TouchableOpacity>
+          {/* YEAR SELECTION TOGGLE */}
+          <View style={localStyles.toggleContainer}>
+            <Text style={localStyles.toggleLabel}>Select Tax Year:</Text>
+            <View style={localStyles.segmentedControl}>
+              <TouchableOpacity
+                style={[localStyles.segment, selectedYear === '2025' && localStyles.activeSegment]}
+                onPress={() => setSelectedYear('2025')}
+              >
+                <Text style={[localStyles.segmentText, selectedYear === '2025' && localStyles.activeText]}>2025 (PITA)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[localStyles.segment, selectedYear === '2026' && localStyles.activeSegment]}
+                onPress={() => setSelectedYear('2026')}
+              >
+                <Text style={[localStyles.segmentText, selectedYear === '2026' && localStyles.activeText]}>2026 (NTA)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity onPress={handleCalculatePage} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Start {selectedYear} Calculation</Text>
+          </TouchableOpacity>
         </Animated.View>
 
         {/* ================= HOW IT WORKS ================= */}
         <Section
           title="How It Works?"
-          subtitle="Just three steps to calculate your tax"
+          subtitle="Simple steps to master your taxes"
         >
           {loading ? (
             <>
-              <Skeleton height={90} />
               <Skeleton height={90} />
               <Skeleton height={90} />
             </>
@@ -94,19 +121,20 @@ export default function Index() {
             <>
               <StepCard
                 step="1"
-                title="Choose Your Tax Type"
-                description="Select from PAYE, Annual PIT, Freelancer, VAT or Company Income Tax."
-                // icon="file-document-outline"
+                title="Enter Your Gross Income"
+                description="Input your total yearly salary. We'll handle the math."
               />
               <StepCard
                 step="2"
-                title="Enter Income & Deductions"
-                description="Input your gross income and any eligible deductions."
+                title="Apply 2026 Reliefs"
+                description={selectedYear === '2026'
+                  ? "Input your rent to claim the 20% tax-free deduction!"
+                  : "Automatic CRA and Pension deductions applied for 2025."}
               />
               <StepCard
                 step="3"
-                title="See Tax Breakdown Instantly"
-                description="Get detailed results showing exactly how your tax was calculated."
+                title="Instant Breakdown"
+                description="See exactly what goes to tax, pension, and your pocket."
               />
             </>
           )}
@@ -115,67 +143,46 @@ export default function Index() {
         {/* ================= LATEST TIPS ================= */}
         <Section
           title="Latest Tax Tips & Updates"
-          subtitle="Stay informed with helpful tax guides and insights"
+          subtitle="Stay informed with Nigerian tax insights"
         >
           <InfoCard
+            tag="2026 Reform"
+            title="The New Rent Relief Explained"
+            description="How the 2026 law helps you keep more money if you pay rent."
+          />
+          <InfoCard
             tag="PAYE"
-            title="Understanding PAYE Tax Bands in Nigeria"
-            description="Learn how progressive tax rates from 7% to 24% apply to your income."
-          />
-
-          <InfoCard
-            tag="Freelancer"
-            title="Tax Tips for Freelancers & Self-Employed"
-            description="Discover allowable expenses and ways to optimize tax payments."
-          />
-
-          <InfoCard
-            tag="CIT"
-            title="Company Income Tax Explained"
-            description="Rates, allowable deductions, and compliance requirements for businesses."
+            title="Understanding Tax Bands"
+            description="Learn how progressive tax rates from 7% to 24% apply to you."
           />
         </Section>
 
         {/* ================= ABOUT ================= */}
         <Section
-          title="About"
-          subtitle="Essential facts every Nigerian taxpayer should know"
+          title="About Taxlator"
+          subtitle="Built for the Nigerian Taxpayer"
         >
           <FeatureCard
-            icon="timer-outline"
+            icon="shield-checkmark-outline"
             title="Accurate Calculations"
-            description="Powered by the latest Nigerian tax rules to ensure dependable results."
+            description="Powered by the latest gazetted Nigerian tax rules."
           />
-
           <FeatureCard
-            icon="bar-chart-outline"
-            title="Instant Salary Breakdown"
-            description="See how deductions affect your take-home pay instantly."
-          />
-
-          <FeatureCard
-            icon="people-outline"
-            title="Perfect for workers, students, freelancers & businesses"
-            description="Ideal for workers, students, freelancers, and businesses."
-          />
-
-          <FeatureCard
-            icon="sparkles"
-            title="Simple, Beautiful & Easy"
-            description="Designed to remove confusion and make tax calculations effortless."
+            icon="flash-outline"
+            title="Instant Results"
+            description="See your take-home pay immediately after input."
           />
         </Section>
 
         {/* ================= CTA ================= */}
         <View style={styles.cta}>
-          <Text style={styles.ctaTitle}>Ready to Get Started?</Text>
+          <Text style={styles.ctaTitle}>Ready to Calculate?</Text>
           <Text style={styles.ctaText}>
-            Start calculating your taxes now. No signup required.
-            Save calculations with a free account (optional).
+            Join thousands of Nigerians planning their finances with Taxlator.
           </Text>
 
           <TouchableOpacity onPress={handleCalculatePage} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Calculate Now</Text>
+            <Text style={styles.secondaryButtonText}>Start Now</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -186,15 +193,7 @@ export default function Index() {
 /* -----------------------------
    REUSABLE COMPONENTS
 -------------------------------- */
-const Section = ({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) => (
+const Section = ({ title, subtitle, children }: any) => (
   <View style={styles.section}>
     <Text style={styles.sectionTitle}>{title}</Text>
     <Text style={styles.sectionSubtitle}>{subtitle}</Text>
@@ -202,35 +201,17 @@ const Section = ({
   </View>
 );
 
-const StepCard = ({
-  step,
-  title,
-  description,
-}: {
-  step: string;
-  title: string;
-  description: string;
-}) => (
+const StepCard = ({ step, title, description }: any) => (
   <View style={styles.stepCard}>
     <View style={styles.stepCircle}>
       <Text style={styles.stepText}>{step}</Text>
     </View>
-
-
     <Text style={styles.cardTitle}>{title}</Text>
     <Text style={styles.cardText}>{description}</Text>
   </View>
 );
 
-const InfoCard = ({
-  tag,
-  title,
-  description,
-}: {
-  tag: string;
-  title: string;
-  description: string;
-}) => (
+const InfoCard = ({ tag, title, description }: any) => (
   <View style={styles.infoCard}>
     <Text style={styles.infoTag}>{tag}</Text>
     <Text style={styles.cardTitle}>{title}</Text>
@@ -239,15 +220,7 @@ const InfoCard = ({
   </View>
 );
 
-const FeatureCard = ({
-  icon,
-  title,
-  description,
-}: {
-  icon: any;
-  title: string;
-  description: string;
-}) => (
+const FeatureCard = ({ icon, title, description }: any) => (
   <View style={styles.featureCard}>
     <Ionicons name={icon} size={22} color={Colors.secondary} />
     <View style={{ marginLeft: 10 }}>
@@ -256,3 +229,51 @@ const FeatureCard = ({
     </View>
   </View>
 );
+
+/* -----------------------------
+   LOCAL STYLES FOR TOGGLE
+-------------------------------- */
+const localStyles = StyleSheet.create({
+  toggleContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  toggleLabel: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 4,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeSegment: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  activeText: {
+    color: Colors.primary,
+  },
+});
