@@ -1,7 +1,8 @@
+// app/_layout.tsx
 import { useEffect, useRef, useState } from 'react';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   View,
@@ -18,6 +19,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 
+// Prevent the splash screen from auto-hiding before our custom logic is ready
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -36,7 +38,7 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  /* DOT ANIMATION */
+  /* DOT ANIMATION FOR LOADING */
   useEffect(() => {
     const animateDot = (dot: Animated.Value, delay: number) =>
       Animated.loop(
@@ -60,12 +62,13 @@ export default function RootLayout() {
     animateDot(dot3, 400);
   }, []);
 
-  /* APP PREP */
+  /* APP PREPARATION TIMER */
   useEffect(() => {
+    // Mimic initialization work
     setTimeout(() => setAppIsReady(true), 3000);
   }, []);
 
-  /* SPLASH EXIT */
+  /* SPLASH EXIT LOGIC */
   useEffect(() => {
     if (appIsReady && fontsLoaded) {
       Animated.timing(fadeAnim, {
@@ -79,7 +82,7 @@ export default function RootLayout() {
     }
   }, [appIsReady, fontsLoaded]);
 
-  /* SPLASH */
+  /* 1. CUSTOM SPLASH SCREEN UI */
   if (showSplash) {
     return (
       <SafeAreaProvider>
@@ -91,6 +94,7 @@ export default function RootLayout() {
 
         <View style={styles.splashContainer}>
           <ImageBackground
+            // Make sure this file exists in your assets/images folder!
             source={require('../assets/images/tax-splash.jpg')}
             resizeMode="cover"
             style={styles.splashImage}
@@ -106,7 +110,7 @@ export default function RootLayout() {
               </View>
 
               <Text style={styles.subtitle}>
-                Nigerian Personal Income Tax Calculator
+                Nigerian Personal & Corporate Tax
               </Text>
 
               <View style={styles.progressBackground}>
@@ -141,7 +145,7 @@ export default function RootLayout() {
     );
   }
 
-  /* APP STACK */
+  /* 2. ACTUAL APP NAVIGATION STACK */
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -152,21 +156,30 @@ export default function RootLayout() {
         />
 
         <Stack screenOptions={{ headerShown: false }}>
+          {/* Main entry is the drawer navigator */}
           <Stack.Screen name="(drawer)" />
-          <Stack.Screen name="+not-found" />
+
+          {/* Error handling for missing routes */}
+          <Stack.Screen
+            name="+not-found"
+            options={{
+              headerShown: true,
+              title: 'Page Not Found',
+              headerTitleStyle: { fontFamily: 'Inter_700Bold' }
+            }}
+          />
         </Stack>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }
 
-/* STYLES */
 const styles = StyleSheet.create({
   splashContainer: { flex: 1 },
   splashImage: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15,23,42,0.85)',
+    backgroundColor: 'rgba(15,23,42,0.9)', // Slightly darker overlay
   },
   splashContent: {
     flex: 1,
@@ -201,6 +214,7 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#93c5fd',
     marginBottom: 30,
+    fontFamily: 'Inter_400Regular',
   },
   progressBackground: {
     width: '80%',
@@ -229,5 +243,6 @@ const styles = StyleSheet.create({
   footer: {
     color: '#c7d2fe',
     fontSize: 12,
+    fontFamily: 'Inter_400Regular',
   },
 });

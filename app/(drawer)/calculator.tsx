@@ -7,273 +7,258 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 // Imports from shared constants and logic
 import { Colors, styles as globalStyles } from '../../constants/calculatorstyles';
 import { calculateNigeriaTax } from '../../utils/taxEngine';
-import { validateIncome } from '../../utils/validation';
 import { formatCurrency } from '../../utils/formatter';
+import { saveTaxRecord } from '../../utils/storage'; //
 
 export default function TaxlatorCalculator() {
   const router = useRouter();
   const { year } = useLocalSearchParams();
-
-  // Navigation State
-  const [step, setStep] = useState(1);
   const is2026 = year === '2026';
 
-  // Input States
-  const [userName, setUserName] = useState('');
-  const [income, setIncome] = useState('');
-  const [rent, setRent] = useState('');
+  // --- STATE MANAGEMENT ---
+  const [step, setStep] = useState(1);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
-  // Helper to format numbers with commas for display
+  const [period, setPeriod] = useState<'monthly' | 'annual'>('monthly');
+  const [userName, setUserName] = useState('');
+  const [grossIncome, setGrossIncome] = useState('');
+  const [otherDeductions, setOtherDeductions] = useState('');
+  const [rentAmount, setRentAmount] = useState('');
+
+  const [includePension, setIncludePension] = useState(true);
+  const [includeRent, setIncludeRent] = useState(false);
+  const [includeNHIS, setIncludeNHIS] = useState(false);
+  const [includeNHF, setIncludeNHF] = useState(false);
+
+  // --- HELPERS ---
   const formatInput = (text: string) => {
     const numericValue = text.replace(/[^0-9]/g, '');
     if (!numericValue) return '';
     return Number(numericValue).toLocaleString();
   };
 
-  // 1. Storage Logic with Millisecond Precision
-  const saveCalculation = async () => {
+  const parseCurrency = (value: string) => parseFloat(value.replace(/,/g, '')) || 0;
+
+  // --- CALCULATION ENGINE ---
+  const calculation = useMemo(() => {
+    const rawGross = parseCurrency(grossIncome);
+    const annualGross = period === 'monthly' ? rawGross * 12 : rawGross;
+
+    const pension = includePension ? annualGross * 0.08 : 0;
+    const nhf = includeNHF ? annualGross * 0.025 : 0;
+    const nhis = includeNHIS ? annualGross * 0.05 : 0;
+
+    const other = parseCurrency(otherDeductions);
+    const annualOther = period === 'monthly' ? other * 12 : other;
+
+    const rawRent = parseCurrency(rentAmount);
+    const taxResult = calculateNigeriaTax(annualGross, is2026, includeRent ? rawRent : 0);
+
+    const annualTax = taxResult.annualTax;
+    const annualNet = annualGross - annualTax - (pension + nhf + nhis + annualOther);
+
+    // --- FIX: DEFINING MONTHLY NET ---
+    const monthlyNet = annualNet / 12;
+
+    return {
+      annualGross,
+      monthlyGross: annualGross / 12,
+      annualTax,
+      monthlyTax: annualTax / 12,
+      annualNet,
+      monthlyNet, // --- FIX: RETURNING MONTHLY NET ---
+      deductions: {
+        pension,
+        nhf,
+        nhis,
+        other: annualOther,
+        rent: includeRent ? (is2026 ? Math.min(rawRent * 0.2, 500000) : 0) : 0,
+      },
+      effectiveTaxable: taxResult.taxableIncome
+    };
+  }, [grossIncome, period, includePension, includeNHF, includeNHIS, includeRent, rentAmount, otherDeductions, is2026]);
+
+  // --- SAVE & CALCULATE ---
+  const handleCalculate = async () => {
+    if (!grossIncome) {
+      Alert.alert("Error", "Please enter your income.");
+      return;
+    }
+
+    const record = {
+      id: Date.now().toString(),
+      type: 'PAYE',
+      userName: userName || 'Guest User',
+      income: calculation.annualGross.toString(),
+      tax: calculation.annualTax,
+      net: calculation.annualNet,
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      year: is2026 ? '2026' : '2025',
+      savings: is2026 ? 25000 : 0 // Example logic for savings badge
+    };
+
+    await saveTaxRecord(record);
+    setStep(2);
+  };
+
+  // --- PDF GENERATION ---
+  const generatePDF = async () => {
+    const html = `
+      <html>
+        <body style="font-family: 'Helvetica'; padding: 40px; color: #1e293b;">
+          <h1 style="color: #1e40af; text-align: center;">TAXLATOR RECEIPT</h1>
+          <p><strong>Name:</strong> ${userName || 'Guest'}</p>
+          <hr/>
+          <p>Annual Gross: ${formatCurrency(calculation.annualGross)}</p>
+          <p>Annual Tax: ${formatCurrency(calculation.annualTax)}</p>
+          <p style="font-size: 20px; color: green;">Annual Net: ${formatCurrency(calculation.annualNet)}</p>
+          <p>Monthly Net: ${formatCurrency(calculation.monthlyNet)}</p>
+        </body>
+      </html>
+    `;
     try {
-      const now = new Date();
-      const preciseTime =
-        now.getHours().toString().padStart(2, '0') + ":" +
-        now.getMinutes().toString().padStart(2, '0') + ":" +
-        now.getSeconds().toString().padStart(2, '0') + ":" +
-        now.getMilliseconds().toString().padStart(3, '0');
-
-      const rawIncome = income.replace(/,/g, '');
-
-      const newRecord = {
-        id: now.getTime().toString(),
-        userName: userName || 'Guest User',
-        date: now.toLocaleDateString('en-NG'),
-        time: preciseTime,
-        income: rawIncome,
-        tax: results.annualTax,
-        net: results.netIncome,
-        year: year || '2026',
-        savings: results.savings || 0
-      };
-
-      const existingData = await AsyncStorage.getItem('tax_history');
-      const history = existingData ? JSON.parse(existingData) : [];
-
-      history.unshift(newRecord);
-      await AsyncStorage.setItem('tax_history', JSON.stringify(history.slice(0, 10)));
-
-      Alert.alert("Saved ✅", `Record for ${newRecord.userName} saved successfully.`);
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri);
     } catch (e) {
-      Alert.alert("Error", "Failed to save calculation.");
+      Alert.alert("Error", "Could not generate PDF.");
     }
   };
 
-  // 2. Validation & Navigation
-  const handleNext = () => {
-    if (step === 1) {
-      if (!userName.trim()) {
-        Alert.alert("Missing Info", "Please enter your name to proceed.");
-        return;
-      }
-      const check = validateIncome(income.replace(/,/g, ''));
-      if (!check.isValid) {
-        Alert.alert("Invalid Amount", check.error);
-        return;
-      }
-    }
-    setStep(s => s + 1);
-  };
-
-  // 3. Calculation Logic
-  const results = useMemo(() => {
-    const rawIncome = parseFloat(income.replace(/,/g, '')) || 0;
-    const rawRent = parseFloat(rent.replace(/,/g, '')) || 0;
-
-    const current = calculateNigeriaTax(rawIncome, is2026, rawRent);
-    const oldTax = is2026 ? calculateNigeriaTax(rawIncome, false, 0).annualTax : 0;
-    const savings = is2026 ? Math.max(0, oldTax - current.annualTax) : 0;
-
-    return { ...current, savings };
-  }, [income, rent, is2026]);
+  const renderCheckboxRow = (label: string, value: boolean, onChange: (val: boolean) => void, subtext?: string) => (
+    <TouchableOpacity
+      style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9'}}
+      onPress={() => onChange(!value)}
+    >
+      <View style={{flex: 1}}>
+        <Text style={{fontSize: 14, color: Colors.text, fontWeight: '600'}}>{label}</Text>
+        {subtext && <Text style={{fontSize: 10, color: Colors.secondaryText, marginTop: 2}}>{subtext}</Text>}
+      </View>
+      <View style={{
+        width: 24, height: 24, borderRadius: 6,
+        borderWidth: 2, borderColor: value ? Colors.primary : '#cbd5e1',
+        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: value ? Colors.primary : 'transparent'
+      }}>
+        {value && <Ionicons name="checkmark" size={16} color="white" />}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={globalStyles.safeArea}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={globalStyles.safeArea}>
       <ScrollView contentContainerStyle={globalStyles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* HERO SECTION */}
-        <View style={globalStyles.hero}>
-          <TouchableOpacity
-            onPress={() => router.replace('/')}
-            style={{ position: 'absolute', left: 20, top: 45 }}
-          >
-             <Ionicons name="close-circle" size={28} color="rgba(255,255,255,0.5)" />
+        <View style={{padding: 20, paddingTop: 60}}>
+          <TouchableOpacity onPress={() => router.back()} style={{marginBottom: 10}}>
+            <Ionicons name="arrow-back" size={24} color={Colors.primary} />
           </TouchableOpacity>
-
-          <View style={{ paddingVertical: 10, alignItems: 'center' }}>
-            <Text style={globalStyles.heroTitle}>Step {step} of 3</Text>
-            <Text style={globalStyles.heroSubtitle}>
-              {step === 1 ? "Personal Info" : step === 2 ? "Rent & Deductions" : "Result Breakdown"}
-            </Text>
-          </View>
+          <Text style={{fontSize: 24, fontWeight: '800', color: Colors.primary}}>
+            {step === 1 ? "Income Details" : "Your Tax Result"}
+          </Text>
         </View>
 
         <View style={{ padding: 20 }}>
-
-          {/* STEP 1: NAME & INCOME ENTRY */}
-          {step === 1 && (
+          {step === 1 ? (
             <View style={globalStyles.stepCard}>
-              <View style={globalStyles.stepCircle}><Text style={globalStyles.stepText}>1</Text></View>
+              <View style={{flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: 20}}>
+                <TouchableOpacity onPress={() => setPeriod('monthly')} style={[{flex: 1, padding: 10, alignItems: 'center', borderRadius: 8}, period === 'monthly' && {backgroundColor: '#fff'}]}>
+                  <Text style={{fontWeight: '700', color: period === 'monthly' ? Colors.primary : '#94a3b8'}}>Monthly</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setPeriod('annual')} style={[{flex: 1, padding: 10, alignItems: 'center', borderRadius: 8}, period === 'annual' && {backgroundColor: '#fff'}]}>
+                  <Text style={{fontWeight: '700', color: period === 'annual' ? Colors.primary : '#94a3b8'}}>Annual</Text>
+                </TouchableOpacity>
+              </View>
 
-              <Text style={globalStyles.cardTitle}>Full Name</Text>
-              <TextInput
-                style={[globalStyles.input, { marginBottom: 20 }]}
-                placeholder="Enter your name"
-                value={userName}
-                onChangeText={setUserName}
-                placeholderTextColor={Colors.placeholder}
-              />
+              <Text style={globalStyles.cardTitle}>Name</Text>
+              <TextInput style={globalStyles.input} value={userName} onChangeText={setUserName} placeholder="John Doe" />
 
-              <Text style={globalStyles.cardTitle}>Total Gross Income</Text>
-              <Text style={globalStyles.cardText}>Annual pay before any tax or pension deductions.</Text>
-              <TextInput
-                style={globalStyles.input}
-                placeholder="₦ 0,000,000"
-                keyboardType="numeric"
-                value={income}
-                onChangeText={(text) => setIncome(formatInput(text))}
-                placeholderTextColor={Colors.placeholder}
-              />
-              <Text style={{fontSize: 12, color: Colors.secondary, marginTop: 10, fontWeight: '600'}}>
-                💡 Monthly: {formatCurrency((parseFloat(income.replace(/,/g, '')) || 0) / 12)}
-              </Text>
+              <Text style={[globalStyles.cardTitle, {marginTop: 15}]}>Gross Income ({period})</Text>
+              <TextInput style={globalStyles.input} value={grossIncome} onChangeText={t => setGrossIncome(formatInput(t))} keyboardType="numeric" placeholder="₦ 0" />
+
+              <Text style={[globalStyles.cardTitle, {marginTop: 15}]}>Other Deductions</Text>
+              <TextInput style={globalStyles.input} value={otherDeductions} onChangeText={t => setOtherDeductions(formatInput(t))} keyboardType="numeric" placeholder="₦ 0" />
+
+              <View style={{marginTop: 20}}>
+                {renderCheckboxRow("Pension (8%)", includePension, setIncludePension)}
+                {renderCheckboxRow("Rent Relief (20%)", includeRent, setIncludeRent, "2026 New Law - Max ₦500k")}
+                {includeRent && (
+                  <TextInput style={[globalStyles.input, {marginTop: 10, borderColor: Colors.primary}]} value={rentAmount} onChangeText={t => setRentAmount(formatInput(t))} keyboardType="numeric" placeholder="Annual Rent Paid" />
+                )}
+                {renderCheckboxRow("NHIS (5%)", includeNHIS, setIncludeNHIS)}
+                {renderCheckboxRow("NHF (2.5%)", includeNHF, setIncludeNHF)}
+              </View>
+
+              <TouchableOpacity style={globalStyles.primaryButton} onPress={handleCalculate}>
+                <Text style={globalStyles.primaryButtonText}>Calculate & Save</Text>
+              </TouchableOpacity>
             </View>
-          )}
+          ) : (
+            <View>
+              <View style={{alignItems: 'center', padding: 20}}>
+                <Text style={{fontSize: 14, color: Colors.secondaryText}}>Monthly Tax (PAYE)</Text>
+                <Text style={{fontSize: 42, fontWeight: '900', color: Colors.primary}}>{formatCurrency(calculation.monthlyTax)}</Text>
+              </View>
 
-          {/* STEP 2: RENT RELIEF */}
-          {step === 2 && (
-            <View style={globalStyles.stepCard}>
-              <View style={globalStyles.stepCircle}><Text style={globalStyles.stepText}>2</Text></View>
-              <Text style={globalStyles.cardTitle}>Deductions & Reliefs</Text>
-
-              {is2026 ? (
-                <View style={globalStyles.infoCard}>
-                  <Text style={globalStyles.infoTag}>NEW LAW: RENT RELIEF</Text>
-                  <Text style={globalStyles.cardText}>Enter annual rent to deduct 20% (Max ₦500k).</Text>
-                  <TextInput
-                    style={globalStyles.input}
-                    placeholder="Annual Rent Paid"
-                    keyboardType="numeric"
-                    value={rent}
-                    onChangeText={(text) => setRent(formatInput(text))}
-                    placeholderTextColor={Colors.placeholder}
-                  />
+              <View style={{flexDirection: 'row', gap: 10, marginBottom: 20}}>
+                <View style={{flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0'}}>
+                  <Text style={{fontSize: 12, color: Colors.secondaryText}}>Monthly Net</Text>
+                  <Text style={{fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.monthlyNet)}</Text>
                 </View>
-              ) : (
-                <View style={globalStyles.infoCard}>
-                  <Text style={globalStyles.cardText}>Standard CRA and 8% Pension are applied for 2025.</Text>
+                <View style={{flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0'}}>
+                  <Text style={{fontSize: 12, color: Colors.secondaryText}}>Annual Net</Text>
+                  <Text style={{fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.annualNet)}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity onPress={() => setShowBreakdown(!showBreakdown)} style={{backgroundColor: '#fff', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, borderWidth: 1, borderColor: '#e2e8f0'}}>
+                <Text style={{fontWeight: '700'}}>Tax Breakdown</Text>
+                <Ionicons name={showBreakdown ? "chevron-up" : "chevron-down"} size={20} />
+              </TouchableOpacity>
+
+              {showBreakdown && (
+                <View style={{padding: 15, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 15}}>
+                  <BreakdownRow label="Pension Contribution" value={`-${formatCurrency(calculation.deductions.pension)}`} />
+                  <BreakdownRow label="Rent Relief applied" value={formatCurrency(calculation.deductions.rent)} />
+                  <BreakdownRow label="Total Annual Tax" value={formatCurrency(calculation.annualTax)} bold color={Colors.error} />
                 </View>
               )}
-            </View>
-          )}
 
-          {/* STEP 3: FINAL SUMMARY */}
-          {step === 3 && (
-            <View>
-              <View style={[globalStyles.infoCard, { backgroundColor: Colors.nairaLightGreen, borderLeftWidth: 5, borderLeftColor: Colors.nairaGreen }]}>
-                <Text style={globalStyles.infoTag}>SUMMARY FOR {userName.toUpperCase()}</Text>
-                <Text style={{ fontSize: 32, fontWeight: '800', color: Colors.text }}>
-                  {formatCurrency(results.netIncome / 12)}
-                </Text>
-
-                {is2026 && results.savings > 0 && (
-                  <View style={{marginTop: 8, backgroundColor: Colors.nairaGreen, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 20, alignSelf: 'flex-start'}}>
-                    <Text style={{color: '#fff', fontSize: 11, fontWeight: 'bold'}}>
-                      🎉 SAVING {formatCurrency(results.savings)} VS 2025
-                    </Text>
-                  </View>
-                )}
-              </View>
-
-              <Text style={[globalStyles.cardTitle, {marginTop: 20}]}>Annual Breakdown</Text>
-
-              <SummaryRow label="Gross Salary" value={income.startsWith('₦') ? income : `₦${income}`} />
-              <SummaryRow label="Pension (8%)" value={`-${formatCurrency((parseFloat(income.replace(/,/g, '')) || 0) * 0.08)}`} isError />
-              <SummaryRow label="Total Tax" value={`-${formatCurrency(results.annualTax)}`} isError />
-              <SummaryRow label="Total Reliefs" value={formatCurrency(results.reliefAmount)} isSuccess />
-
-              <View style={{
-                backgroundColor: Colors.primary,
-                padding: 20,
-                borderRadius: 12,
-                marginTop: 25,
-                alignItems: 'center'
-              }}>
-                <Text style={{color: '#fff', fontWeight: '700', fontSize: 16}}>Keep this record?</Text>
-                <TouchableOpacity
-                  onPress={saveCalculation}
-                  style={{backgroundColor: '#fff', paddingHorizontal: 25, paddingVertical: 12, borderRadius: 8, marginTop: 12}}
-                >
-                  <Text style={{color: Colors.primary, fontWeight: '800'}}>SAVE TO HISTORY</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* NAVIGATION */}
-          <View style={{ marginTop: 20, marginBottom: 40 }}>
-            <TouchableOpacity
-              style={globalStyles.primaryButton}
-              onPress={step === 3 ? () => setStep(1) : handleNext}
-            >
-              <Text style={globalStyles.primaryButtonText}>
-                {step === 3 ? "Recalculate" : "Continue"}
-              </Text>
-            </TouchableOpacity>
-
-            {/* BACK HOME BUTTON - ONLY STEP 3 */}
-            {step === 3 && (
-                <TouchableOpacity
-                    style={[globalStyles.primaryButton, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.primary, marginTop: 12 }]}
-                    onPress={() => router.replace('/')}
-                >
-                    <Text style={[globalStyles.primaryButtonText, { color: Colors.primary }]}>Go Back Home</Text>
-                </TouchableOpacity>
-            )}
-
-            {step > 1 && (
-              <TouchableOpacity onPress={() => setStep(s => s - 1)} style={{ alignSelf: 'center', marginTop: 15 }}>
-                <Text style={{ color: Colors.secondaryText, fontWeight: '600' }}>Back</Text>
+              <TouchableOpacity style={globalStyles.primaryButton} onPress={() => setStep(1)}>
+                <Text style={globalStyles.primaryButtonText}>Recalculate</Text>
               </TouchableOpacity>
-            )}
-          </View>
 
+              <TouchableOpacity style={[globalStyles.primaryButton, {backgroundColor: Colors.accent, marginTop: 10}]} onPress={generatePDF}>
+                  <Ionicons name="download-outline" size={20} color="white" style={{marginRight: 8}} />
+                  <Text style={globalStyles.primaryButtonText}>Download Receipt (PDF)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => router.replace('/history')} style={{alignItems: 'center', marginTop: 25}}>
+                <Text style={{color: Colors.primary, fontWeight: '700'}}>View All Saved Records →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function SummaryRow({ label, value, isError, isSuccess }: any) {
+function BreakdownRow({ label, value, bold, color }: any) {
   return (
-    <View style={globalStyles.featureCard}>
-      <Text style={{ flex: 1, color: Colors.secondaryText, fontSize: 14 }}>{label}</Text>
-      <Text style={{
-        fontWeight: '700',
-        fontSize: 15,
-        color: isError ? Colors.error : isSuccess ? Colors.success : Colors.text
-      }}>
-        {value}
-      </Text>
+    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8}}>
+      <Text style={{fontSize: 13, color: Colors.secondaryText}}>{label}</Text>
+      <Text style={{fontSize: 13, fontWeight: bold ? '800' : '600', color: color || Colors.text}}>{value}</Text>
     </View>
   );
 }
