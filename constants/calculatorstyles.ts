@@ -3,163 +3,158 @@ import { StyleSheet, Dimensions, Platform } from 'react-native';
 const { width } = Dimensions.get('window');
 
 export const Colors = {
-  primary: '#1e40af', // Hero Blue
-  secondary: '#059669', // Success Green
-  nairaGreen: '#059669',
+  // Brand Colors
+  primary: '#1e40af',       // Deep Blue (Hero)
+  primaryLight: '#3b82f6',  // Lighter Blue (Highlights)
+  secondary: '#64748b',     // Slate (Secondary text/icons)
+  accent: '#059669',        // Green (Success/Money)
+
+  // UI Colors
+  background: '#f8fafc',    // Very light cool gray (Screen bg)
+  card: '#ffffff',          // Pure white (Card bg)
+  text: '#0f172a',          // Very dark slate (Main text)
+  secondaryText: '#64748b', // Muted text
+  border: '#e2e8f0',        // Light border
+  inputBorder: '#cbd5e1',   // Input specific border
+  placeholder: '#94a3b8',   // Placeholder text
+
+  // Status Colors
+  error: '#ef4444',
+  success: '#10b981',
+  nairaGreen: '#10b981',    // Distinct green for currency
   nairaLightGreen: '#d1fae5',
-  text: '#1e293b',
-  secondaryText: '#64748b',
-  background: '#f8fafc', // Slightly off-white for better contrast
-  card: '#ffffff',
-  border: '#e2e8f0',
-  placeholder: '#94a3b8',
-  error: '#dc2626',
-  success: '#059669',
 };
 
 export const styles = StyleSheet.create({
+  // --- LAYOUT ---
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
   },
   scroll: {
     flexGrow: 1,
-  },
-  // --- HEADER & HERO ---
-  hero: {
-    backgroundColor: Colors.primary,
-    paddingTop: 40,
-    paddingBottom: 30,
-    alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-  },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    color: '#bfdbfe',
-    marginTop: 5,
+    paddingBottom: 40,
   },
 
-  // --- STEP CARDS ---
+  // --- CARDS & CONTAINERS ---
   stepCard: {
     backgroundColor: Colors.card,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 24,
     marginBottom: 20,
+    // Modern soft shadow
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
     borderWidth: 1,
     borderColor: Colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 3,
-  },
-  stepCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  stepText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
   },
 
-  // --- INPUTS ---
+  // --- TYPOGRAPHY ---
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  heroSubtitle: {
+    fontSize: 15,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: '80%',
+  },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  cardText: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+
+  // --- INPUTS ---
   input: {
     backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    padding: 15,
-    fontSize: 18,
-    color: Colors.text,
-    marginTop: 10,
-  },
-
-  // --- HISTORY SPECIFIC STYLES ---
-  userNameLabel: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.primary,
-    textTransform: 'capitalize',
-  },
-  preciseTime: {
-    fontSize: 11,
-    color: Colors.secondaryText,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginTop: 4,
-  },
-  clearAllBtn: {
-    backgroundColor: '#fee2e2',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  clearAllText: {
-    color: Colors.error,
-    fontWeight: '700',
-    fontSize: 12,
+    borderColor: Colors.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: Colors.text,
+    marginBottom: 0, // Spacing handled by containers
   },
 
-  // --- RESULTS & SUMMARY ---
+  // --- BUTTONS ---
+  primaryButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    // Button Shadow
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  secondaryButtonText: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // --- UTILITIES ---
   infoCard: {
     backgroundColor: '#eff6ff',
-    padding: 20,
-    borderRadius: 16,
-    marginTop: 10,
-    borderLeftWidth: 5,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    borderLeftWidth: 4,
     borderLeftColor: Colors.primary,
   },
   infoTag: {
     fontSize: 11,
     fontWeight: '800',
     color: Colors.primary,
-    marginBottom: 6,
-    letterSpacing: 1,
+    marginBottom: 4,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
-  primaryButton: {
-    backgroundColor: Colors.primary,
-    padding: 20,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: Colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-  },
+
+  // --- LIST ITEMS (Summary Rows) ---
   featureCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 15,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
     alignItems: 'center',
