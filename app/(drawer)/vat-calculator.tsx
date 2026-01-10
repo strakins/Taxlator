@@ -13,9 +13,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 // --- STORAGE & UTILS ---
-import { saveTaxRecord } from '../utils/storage';
-import { Colors, styles as globalStyles } from '../../constants/calculatorstyles';
-import { formatCurrency } from '../../utils/formatter';
+import { saveTaxRecord } from '@/utils/storage';
+import { Colors, styles as globalStyles } from '@/constants/calculatorstyles';
+import { formatCurrency } from '@/utils/formatter';
 
 export default function VATCalculator() {
   const router = useRouter();
