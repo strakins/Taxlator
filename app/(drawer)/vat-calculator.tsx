@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 // --- STORAGE & UTILS ---
 import { saveTaxRecord } from '@/utils/storage';
@@ -24,6 +26,7 @@ export default function VATCalculator() {
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState('10');
   const [calcType, setCalcType] = useState<'add' | 'remove'>('add');
+  const [description, setDescription] = useState('');
 
   // --- LOGIC ---
   const formatInput = (text: string) => {
@@ -54,23 +57,75 @@ export default function VATCalculator() {
     return { baseAmount, vatAmount, totalAmount };
   }, [amount, vatRate, calcType]);
 
-  // --- SAVE TO HISTORY ---
-  const handleSave = async () => {
+  // --- SAVE & PDF LOGIC ---
+  const handleSaveAndPrint = async (shouldPrint = false) => {
+    if (parseNumber(amount) <= 0) {
+      Alert.alert("Error", "Please enter a valid amount.");
+      return;
+    }
+
     const record = {
       id: Date.now().toString(),
       type: 'VAT',
-      userName: calcType === 'add' ? 'VAT Exclusive Sale' : 'VAT Inclusive Purchase',
-      income: calculation.baseAmount.toString(), // The pre-tax price
-      tax: calculation.vatAmount,
-      net: calculation.totalAmount,
+      title: description || (calcType === 'add' ? 'Sales Invoice' : 'Purchase Receipt'),
+      userName: description || 'VAT Record',
+      income: calculation.baseAmount.toString(), // Base price for history stats
+      tax: calculation.vatAmount.toString(),     // VAT amount for history stats
+      net: calculation.totalAmount.toString(),
       date: new Date().toLocaleDateString(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       year: '2026',
-      savings: 0 // No relief for VAT
     };
 
     await saveTaxRecord(record);
-    Alert.alert("Success", "VAT record saved to history.");
+
+    if (shouldPrint) {
+      generatePDF(record);
+    } else {
+      Alert.alert("Success", "VAT record saved to history.");
+    }
+  };
+
+  const generatePDF = async (item: any) => {
+    const html = `
+      <html>
+        <head>
+          <style>
+            body { font-family: 'Helvetica'; padding: 40px; color: #1e293b; }
+            .header { text-align: center; border-bottom: 2px solid ${Colors.primary}; padding-bottom: 20px; }
+            .title { color: ${Colors.primary}; font-size: 24px; font-weight: bold; }
+            .table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+            .table td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+            .label { color: #64748b; font-size: 14px; }
+            .value { font-weight: bold; text-align: right; }
+            .total-row { background-color: #f8fafc; color: ${Colors.primary}; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">VAT ASSESSMENT RECEIPT</h1>
+            <p>Fiscal Year 2026</p>
+          </div>
+          <p style="margin-top: 20px;"><strong>Description:</strong> ${item.title}</p>
+          <table class="table">
+            <tr><td class="label">Net Amount (Base)</td><td class="value">${formatCurrency(item.income)}</td></tr>
+            <tr><td class="label">VAT Rate</td><td class="value">${vatRate}%</td></tr>
+            <tr><td class="label">VAT Amount</td><td class="value">+ ${formatCurrency(item.tax)}</td></tr>
+            <tr class="total-row">
+              <td class="label" style="font-weight:bold">Total Gross Amount</td>
+              <td class="value">${formatCurrency(item.net)}</td>
+            </tr>
+          </table>
+          <p style="text-align:center; font-size:10px; margin-top:50px; color:#94a3b8;">Generated via Taxlator Nigeria</p>
+        </body>
+      </html>
+    `;
+    try {
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri);
+    } catch (e) {
+      Alert.alert("Error", "Could not generate PDF");
+    }
   };
 
   return (
@@ -101,6 +156,14 @@ export default function VATCalculator() {
                 <Text style={{fontWeight: '700', color: calcType === 'remove' ? Colors.primary : '#94a3b8'}}>VAT Inclusive</Text>
               </TouchableOpacity>
             </View>
+
+            <Text style={globalStyles.cardTitle}>Item Description (Optional)</Text>
+            <TextInput
+              style={[globalStyles.input, {marginBottom: 15}]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="e.g. Office Equipment"
+            />
 
             <Text style={globalStyles.cardTitle}>{calcType === 'add' ? 'Net Amount (Before VAT)' : 'Gross Amount (Total)'}</Text>
             <TextInput
@@ -151,14 +214,23 @@ export default function VATCalculator() {
                 </View>
               </View>
 
-              {/* SAVE ACTION */}
-              <TouchableOpacity
-                style={[globalStyles.primaryButton, {marginTop: 15, backgroundColor: '#fff', borderWidth: 2, borderColor: Colors.primary}]}
-                onPress={handleSave}
-              >
-                <Ionicons name="save-outline" size={20} color={Colors.primary} style={{marginRight: 8}} />
-                <Text style={[globalStyles.primaryButtonText, {color: Colors.primary}]}>Save to History</Text>
-              </TouchableOpacity>
+              <View style={{flexDirection: 'row', gap: 10, marginTop: 15}}>
+                <TouchableOpacity
+                  style={[globalStyles.primaryButton, {flex: 1, backgroundColor: '#fff', borderWidth: 2, borderColor: Colors.primary}]}
+                  onPress={() => handleSaveAndPrint(false)}
+                >
+                  <Ionicons name="save-outline" size={20} color={Colors.primary} />
+                  <Text style={{color: Colors.primary, fontWeight: '700', marginLeft: 8}}>Save</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[globalStyles.primaryButton, {flex: 1.5}]}
+                  onPress={() => handleSaveAndPrint(true)}
+                >
+                  <Ionicons name="document-text-outline" size={20} color="white" />
+                  <Text style={{color: 'white', fontWeight: '700', marginLeft: 8}}>PDF Receipt</Text>
+                </TouchableOpacity>
+              </View>
             </>
           )}
 

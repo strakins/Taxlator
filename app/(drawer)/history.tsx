@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,16 @@ import {
   Alert,
   ActivityIndicator,
   Share,
-  Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 // --- Shared Assets ---
-import { formatCurrency } from '../../utils/formatter';
-import { Colors } from '../../constants/calculatorstyles';
+import { formatCurrency } from '@/utils/formatter';
+import { Colors } from '@/constants/calculatorstyles';
 
 export default function HistoryScreen() {
   const router = useRouter();
@@ -26,14 +27,16 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'PAYE' | 'CIT' | 'VAT'>('ALL');
 
+  // --- LOAD DATA ---
   const loadHistory = async () => {
     try {
       setLoading(true);
       const data = await AsyncStorage.getItem('tax_history');
       if (data) {
         const parsed = JSON.parse(data);
-        // Ensure every item has a 'type' property (default to PAYE if missing)
         setHistory(parsed.map((item: any) => ({ ...item, type: item.type || 'PAYE' })));
+      } else {
+        setHistory([]);
       }
     } catch (error) {
       console.error("Failed to load history", error);
@@ -42,116 +45,162 @@ export default function HistoryScreen() {
     }
   };
 
-  useEffect(() => { loadHistory(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+    }, [])
+  );
 
-  // --- STATS CALCULATION ---
-  const stats = useMemo(() => {
-    const totalTax = history.reduce((sum, item) => sum + (parseFloat(item.tax) || 0), 0);
-    const count = history.length;
-    return { totalTax, count };
-  }, [history]);
+  // --- PDF GENERATION ENGINE ---
+  const generatePDF = async (item: any) => {
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #1e293b; }
+            .header { text-align: center; border-bottom: 2px solid ${Colors.primary}; padding-bottom: 20px; }
+            .title { color: ${Colors.primary}; font-size: 28px; margin: 0; }
+            .details { margin-top: 30px; line-height: 1.6; }
+            .table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+            .table th { background: #f1f5f9; padding: 12px; text-align: left; border: 1px solid #e2e8f0; }
+            .table td { padding: 12px; border: 1px solid #e2e8f0; }
+            .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #94a3b8; }
+            .total { font-weight: bold; color: ${Colors.error}; font-size: 18px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">TAX ASSESSMENT RECEIPT</h1>
+            <p>Generated via Taxlator Nigeria</p>
+          </div>
+          <div class="details">
+            <p><strong>Reference ID:</strong> ${item.id}</p>
+            <p><strong>Taxpayer Name:</strong> ${item.title || item.userName || 'N/A'}</p>
+            <p><strong>Date of Assessment:</strong> ${item.date}</p>
+            <p><strong>Tax Type:</strong> ${item.type}</p>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Base Income / Turnover</td>
+                <td>${formatCurrency(item.income || item.turnover || 0)}</td>
+              </tr>
+              <tr>
+                <td class="total">Total Tax Payable</td>
+                <td class="total">${formatCurrency(item.amount || item.tax || 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>This is a computer-generated document based on the 2026 Fiscal Reform Laws.</p>
+          </div>
+        </body>
+      </html>
+    `;
 
-  // --- FILTER & SEARCH LOGIC ---
-  const filteredHistory = useMemo(() => {
-    let base = history;
-    if (activeFilter !== 'ALL') {
-      base = base.filter(item => item.type === activeFilter);
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+    } catch (error) {
+      Alert.alert("Error", "Could not generate or share the tax document.");
     }
-    if (!searchQuery.trim()) return base;
-    const query = searchQuery.toLowerCase();
-    return base.filter(item =>
-      (item.userName && item.userName.toLowerCase().includes(query)) ||
-      (item.type && item.type.toLowerCase().includes(query)) ||
-      item.date.includes(query)
-    );
-  }, [searchQuery, history, activeFilter]);
+  };
 
-  const clearAllHistory = () => {
-    Alert.alert("Clear All Records?", "This action cannot be undone.", [
+  // --- DELETE LOGIC ---
+  const deleteRecord = (id: string) => {
+    Alert.alert("Delete Record", "Are you sure you want to remove this calculation?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Clear All",
+        text: "Delete",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.removeItem('tax_history');
-          setHistory([]);
+          const newHistory = history.filter(item => item.id !== id);
+          setHistory(newHistory);
+          await AsyncStorage.setItem('tax_history', JSON.stringify(newHistory));
         }
       }
     ]);
   };
 
-  const deleteRecord = (id: string) => {
-    const newHistory = history.filter(item => item.id !== id);
-    setHistory(newHistory);
-    AsyncStorage.setItem('tax_history', JSON.stringify(newHistory));
-  };
+  // --- STATS & FILTERS ---
+  const stats = useMemo(() => {
+    const totalTax = history.reduce((sum, item) => sum + (parseFloat(item.amount || item.tax || 0)), 0);
+    return { totalTax, count: history.length };
+  }, [history]);
 
-  const handleShare = async (item: any) => {
-    const message = `Taxlator Receipt\nType: ${item.type}\nUser: ${item.userName}\nTax: ${formatCurrency(item.tax)}\nNet: ${formatCurrency(item.net)}`;
-    await Share.share({ message });
-  };
+  const filteredHistory = useMemo(() => {
+    let base = history;
+    if (activeFilter !== 'ALL') base = base.filter(item => item.type === activeFilter);
+    if (!searchQuery.trim()) return base;
+    const query = searchQuery.toLowerCase();
+    return base.filter(item =>
+      (item.title || item.userName || "").toLowerCase().includes(query) ||
+      item.type.toLowerCase().includes(query) ||
+      item.date.includes(query)
+    );
+  }, [searchQuery, history, activeFilter]);
 
   const renderHistoryItem = ({ item }: any) => (
     <View style={styles.historyCard}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={styles.userNameText}>{item.userName || 'Guest User'}</Text>
+            <Text style={styles.userNameText}>{item.title || item.userName || 'Calculation'}</Text>
             <View style={[styles.typeBadge, { backgroundColor: getTypeColor(item.type) }]}>
               <Text style={styles.typeBadgeText}>{item.type}</Text>
             </View>
           </View>
           <Text style={styles.preciseTime}>
-            <Ionicons name="calendar-outline" size={10} color="#94a3b8" /> {item.date} | {item.time || ''}
+            <Ionicons name="calendar-outline" size={10} color="#94a3b8" /> {item.date}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity onPress={() => handleShare(item)} style={styles.actionButton}>
-            <Ionicons name="share-social-outline" size={20} color={Colors.primary} />
+        <View style={styles.actionGroup}>
+          <TouchableOpacity onPress={() => generatePDF(item)} style={styles.actionButton}>
+            <Ionicons name="document-text-outline" size={22} color={Colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => deleteRecord(item.id)} style={styles.actionButton}>
-            <Ionicons name="trash-outline" size={20} color={Colors.error} />
+            <Ionicons name="trash-outline" size={22} color={Colors.error} />
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.cardRow}>
-        <Text style={styles.label}>Base Amount</Text>
-        <Text style={styles.value}>{formatCurrency(parseFloat(item.income || item.turnover || 0))}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.label}>Total Tax Due</Text>
-        <Text style={[styles.value, { color: Colors.error }]}>{formatCurrency(item.tax)}</Text>
+        <Text style={styles.label}>Tax Amount</Text>
+        <Text style={[styles.value, { color: Colors.error }]}>
+            {formatCurrency(item.amount || item.tax || 0)}
+        </Text>
       </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* --- HEADER --- */}
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.push('/')}><Text style={styles.backText}>← Dashboard</Text></TouchableOpacity>
-          {history.length > 0 && (
-            <TouchableOpacity onPress={clearAllHistory} style={styles.clearAllBtn}><Text style={styles.clearAllText}>Clear All</Text></TouchableOpacity>
-          )}
-        </View>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Tax Records</Text>
       </View>
 
-      {/* --- SUMMARY STATS --- */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Total Calculations</Text>
+          <Text style={styles.statLabel}>Total Saved</Text>
           <Text style={styles.statValue}>{stats.count}</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Accumulated Tax</Text>
-          <Text style={[styles.statValue, { color: Colors.error }]}>{formatCurrency(stats.totalTax)}</Text>
+          <Text style={styles.statLabel}>Total Tax Sum</Text>
+          <Text style={[styles.statValue, { color: Colors.error }]}>
+            {formatCurrency(stats.totalTax)}
+          </Text>
         </View>
       </View>
 
-      {/* --- FILTER BAR --- */}
       <View style={styles.filterContainer}>
         {['ALL', 'PAYE', 'CIT', 'VAT'].map((f: any) => (
           <TouchableOpacity
@@ -203,8 +252,6 @@ const styles = StyleSheet.create({
   header: { marginBottom: 15 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   backText: { color: Colors.primary, fontWeight: '700' },
-  clearAllBtn: { backgroundColor: '#fee2e2', padding: 6, borderRadius: 8 },
-  clearAllText: { color: Colors.error, fontWeight: '700', fontSize: 12 },
   title: { fontSize: 24, fontWeight: '900', color: '#0f172a', marginTop: 10 },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
   statBox: { flex: 1, backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' },
@@ -222,7 +269,8 @@ const styles = StyleSheet.create({
   typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   typeBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
   preciseTime: { fontSize: 10, color: '#94a3b8', marginTop: 4 },
-  actionButton: { marginLeft: 10 },
+  actionGroup: { flexDirection: 'row', gap: 15 },
+  actionButton: { padding: 4 },
   cardRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   label: { color: '#64748b', fontSize: 12 },
   value: { fontWeight: '700', fontSize: 14 },

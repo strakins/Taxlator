@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-// --- ADDED STORAGE IMPORT ---
+// --- Shared Assets ---
 import { saveTaxRecord } from '../../utils/storage';
 import { Colors, styles as globalStyles } from '../../constants/calculatorstyles';
 import { formatCurrency } from '../../utils/formatter';
@@ -42,6 +42,7 @@ export default function CITCalculator() {
     const rawProfit = parseCurrency(profitBeforeTax);
     const rawAssets = parseCurrency(fixedAssets);
 
+    // 2026 Rules: Small companies (under 50M turnover & 250M assets) are CIT exempt
     const isSmallCompany = rawTurnover <= 50000000 && rawAssets <= 250000000 && !isProfessionalService;
     const isLevyExempt = rawTurnover <= 100000000 && rawAssets <= 250000000;
 
@@ -65,48 +66,65 @@ export default function CITCalculator() {
     };
   }, [turnover, profitBeforeTax, fixedAssets, isProfessionalService]);
 
-  // --- TRIGGER STORAGE ON CALCULATION ---
+  // --- SAVE & CALCULATE ---
   const handleCalculate = async () => {
     if (!profitBeforeTax || !turnover) {
       Alert.alert("Missing Info", "Please enter turnover and profit figures.");
       return;
     }
 
-    // Save to History automatically
+    // Standardized record for History consistency
     const record = {
       id: Date.now().toString(),
       type: 'CIT',
-      userName: companyName || 'Unnamed Business', // Using userName for history consistency
-      income: calculation.turnover.toString(),      // Store turnover as base income
-      tax: calculation.totalTax,
-      net: calculation.netProfit,
+      title: companyName || 'Corporate Assessment',
+      userName: companyName || 'Unnamed Business',
+      income: calculation.turnover.toString(), // Mapped to "Base Amount" in History
+      tax: calculation.totalTax.toString(),     // Mapped to "Tax Due" in History
+      net: calculation.netProfit.toString(),
       date: new Date().toLocaleDateString(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       year: '2026',
-      savings: calculation.isSmall ? (calculation.profit * 0.30) : 0 // Show how much CIT was saved
     };
 
     await saveTaxRecord(record);
     setStep(2);
   };
 
+  // --- PDF GENERATION (Standardized Template) ---
   const generatePDF = async () => {
     const html = `
       <html>
-        <body style="font-family: 'Helvetica'; padding: 40px; color: #1e293b;">
-          <h1 style="color: #1e40af; text-align: center; margin-bottom: 5px;">CORPORATE TAX RECEIPT</h1>
-          <p style="text-align: center; color: #64748b; margin-top: 0;">2026 Nigerian Tax Act (NTA)</p>
-          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;"/>
-          <p><strong>Company:</strong> ${companyName || 'Valued Business'}</p>
-          <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
-             <p style="margin: 5px 0;">Annual Turnover: <strong>${formatCurrency(calculation.turnover)}</strong></p>
-             <p style="margin: 5px 0;">Profit Before Tax: <strong>${formatCurrency(calculation.profit)}</strong></p>
-             <p style="margin: 15px 0; font-size: 18px; color: #dc2626;">Total Tax Payable: <strong>${formatCurrency(calculation.totalTax)}</strong></p>
+        <head>
+          <style>
+            body { font-family: 'Helvetica'; padding: 40px; color: #1e293b; }
+            .header { text-align: center; border-bottom: 2px solid ${Colors.primary}; padding-bottom: 20px; }
+            .title { color: ${Colors.primary}; font-size: 24px; font-weight: bold; }
+            .table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+            .table td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+            .label { color: #64748b; font-size: 14px; }
+            .value { font-weight: bold; text-align: right; }
+            .total-row { background-color: #f8fafc; color: #dc2626; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">CORPORATE TAX RECEIPT</h1>
+            <p>Generated via Taxlator Nigeria (2026 Reform)</p>
           </div>
-          <h3 style="color: #1e40af; margin-top: 30px;">Breakdown</h3>
-          <p>CIT Rate Applied: ${calculation.citRateText}</p>
-          <p>Development Levy (4%): ${formatCurrency(calculation.levyAmount)}</p>
-          <p style="margin-top: 20px; font-weight: bold; color: #16a34a;">Net Profit After Tax: ${formatCurrency(calculation.netProfit)}</p>
+          <p><strong>Company:</strong> ${companyName || 'Business Entity'}</p>
+          <table class="table">
+            <tr><td class="label">Annual Turnover</td><td class="value">${formatCurrency(calculation.turnover)}</td></tr>
+            <tr><td class="label">Profit Before Tax</td><td class="value">${formatCurrency(calculation.profit)}</td></tr>
+            <tr><td class="label">CIT Rate Applied</td><td class="value">${calculation.citRateText}</td></tr>
+            <tr><td class="label">Dev. Levy (4%)</td><td class="value">${formatCurrency(calculation.levyAmount)}</td></tr>
+            <tr class="total-row">
+              <td class="label" style="font-weight:bold">Total Tax Payable</td>
+              <td class="value">${formatCurrency(calculation.totalTax)}</td>
+            </tr>
+            <tr><td class="label">Net Profit After Tax</td><td class="value" style="color:#16a34a">${formatCurrency(calculation.netProfit)}</td></tr>
+          </table>
+          <p style="text-align:center; font-size:10px; margin-top:50px; color:#94a3b8;">Official Assessment - 2026 Tax Act</p>
         </body>
       </html>
     `;
@@ -121,7 +139,6 @@ export default function CITCalculator() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={globalStyles.safeArea}>
       <ScrollView contentContainerStyle={globalStyles.scroll}>
-
         <View style={{padding: 20, paddingTop: 60}}>
           <TouchableOpacity onPress={() => router.back()} style={{marginBottom: 10}}>
             <Ionicons name="arrow-back" size={24} color={Colors.primary} />
@@ -152,7 +169,7 @@ export default function CITCalculator() {
                 <View style={{width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: Colors.primary, backgroundColor: isProfessionalService ? Colors.primary : 'transparent', justifyContent: 'center', alignItems: 'center'}}>
                   {isProfessionalService && <Ionicons name="checkmark" size={16} color="white" />}
                 </View>
-                <Text style={{color: Colors.text, fontSize: 13}}>Professional Service Provider? (No exemption)</Text>
+                <Text style={{color: Colors.text, fontSize: 13, flexShrink: 1}}>Professional Service Provider? (No exemption)</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={[globalStyles.primaryButton, {marginTop: 30}]} onPress={handleCalculate}>
