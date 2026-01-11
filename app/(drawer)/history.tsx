@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,35 @@ import {
   Alert,
   ActivityIndicator,
   Share,
-  Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { formatCurrency } from '../../utils/formatter';
-import { Colors } from '../../constants/calculatorstyles';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+
+// --- Shared Assets ---
+import { formatCurrency } from '@/utils/formatter';
+import { Colors } from '@/constants/calculatorstyles';
 
 export default function HistoryScreen() {
+  const router = useRouter();
   const [history, setHistory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'PAYE' | 'CIT' | 'VAT'>('ALL');
 
+  // --- LOAD DATA ---
   const loadHistory = async () => {
     try {
       setLoading(true);
       const data = await AsyncStorage.getItem('tax_history');
-      if (data) setHistory(JSON.parse(data));
+      if (data) {
+        const parsed = JSON.parse(data);
+        setHistory(parsed.map((item: any) => ({ ...item, type: item.type || 'PAYE' })));
+      } else {
+        setHistory([]);
+      }
     } catch (error) {
       console.error("Failed to load history", error);
     } finally {
@@ -34,56 +45,76 @@ export default function HistoryScreen() {
     }
   };
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+    }, [])
+  );
 
-  // --- CLEAR ALL FUNCTION ---
-  const clearAllHistory = () => {
-    Alert.alert(
-      "Clear All History?",
-      "This will permanently delete all saved calculations. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, Clear All",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.removeItem('tax_history');
-            setHistory([]);
-            Alert.alert("Success", "All records have been cleared.");
-          }
-        }
-      ]
-    );
-  };
+  // --- PDF GENERATION ENGINE ---
+  const generatePDF = async (item: any) => {
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #1e293b; }
+            .header { text-align: center; border-bottom: 2px solid ${Colors.primary}; padding-bottom: 20px; }
+            .title { color: ${Colors.primary}; font-size: 28px; margin: 0; }
+            .details { margin-top: 30px; line-height: 1.6; }
+            .table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+            .table th { background: #f1f5f9; padding: 12px; text-align: left; border: 1px solid #e2e8f0; }
+            .table td { padding: 12px; border: 1px solid #e2e8f0; }
+            .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #94a3b8; }
+            .total { font-weight: bold; color: ${Colors.error}; font-size: 18px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">TAX ASSESSMENT RECEIPT</h1>
+            <p>Generated via Taxlator Nigeria</p>
+          </div>
+          <div class="details">
+            <p><strong>Reference ID:</strong> ${item.id}</p>
+            <p><strong>Taxpayer Name:</strong> ${item.title || item.userName || 'N/A'}</p>
+            <p><strong>Date of Assessment:</strong> ${item.date}</p>
+            <p><strong>Tax Type:</strong> ${item.type}</p>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Base Income / Turnover</td>
+                <td>${formatCurrency(item.income || item.turnover || 0)}</td>
+              </tr>
+              <tr>
+                <td class="total">Total Tax Payable</td>
+                <td class="total">${formatCurrency(item.amount || item.tax || 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="footer">
+            <p>This is a computer-generated document based on the 2026 Fiscal Reform Laws.</p>
+          </div>
+        </body>
+      </html>
+    `;
 
-  const handleShare = async (item: any) => {
     try {
-      const message = `
-🇳🇬 *Taxlator Official Breakdown*
---------------------------
-👤 *Name:* ${item.userName || 'Guest User'}
-📅 *Date:* ${item.date}
-🕒 *Time:* ${item.time}
-⚖️ *Law:* ${item.year} Reform
----
-💰 *Gross Annual:* ${formatCurrency(parseFloat(item.income))}
-📉 *Total Tax:* ${formatCurrency(item.tax)}
-✅ *Net Monthly:* ${formatCurrency(item.net / 12)}
-${item.savings > 0 ? `\n🎉 *2026 Savings:* ${formatCurrency(item.savings)}` : ''}
---------------------------
-_Calculated on Taxlator 2026_
-_Receipt ID: ${item.id}_`;
-
-      await Share.share({ message, title: 'Tax Calculation Receipt' });
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error) {
-      Alert.alert("Error", "Could not share calculation.");
+      Alert.alert("Error", "Could not generate or share the tax document.");
     }
   };
 
+  // --- DELETE LOGIC ---
   const deleteRecord = (id: string) => {
-    Alert.alert("Delete Record?", "Remove this specific calculation?", [
+    Alert.alert("Delete Record", "Are you sure you want to remove this calculation?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -97,28 +128,41 @@ _Receipt ID: ${item.id}_`;
     ]);
   };
 
+  // --- STATS & FILTERS ---
+  const stats = useMemo(() => {
+    const totalTax = history.reduce((sum, item) => sum + (parseFloat(item.amount || item.tax || 0)), 0);
+    return { totalTax, count: history.length };
+  }, [history]);
+
   const filteredHistory = useMemo(() => {
-    if (!searchQuery.trim()) return history;
+    let base = history;
+    if (activeFilter !== 'ALL') base = base.filter(item => item.type === activeFilter);
+    if (!searchQuery.trim()) return base;
     const query = searchQuery.toLowerCase();
-    return history.filter(item =>
-      item.date.toLowerCase().includes(query) ||
-      (item.userName && item.userName.toLowerCase().includes(query)) ||
-      item.income.toString().includes(query)
+    return base.filter(item =>
+      (item.title || item.userName || "").toLowerCase().includes(query) ||
+      item.type.toLowerCase().includes(query) ||
+      item.date.includes(query)
     );
-  }, [searchQuery, history]);
+  }, [searchQuery, history, activeFilter]);
 
   const renderHistoryItem = ({ item }: any) => (
     <View style={styles.historyCard}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.userNameText}>{item.userName || 'Guest User'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.userNameText}>{item.title || item.userName || 'Calculation'}</Text>
+            <View style={[styles.typeBadge, { backgroundColor: getTypeColor(item.type) }]}>
+              <Text style={styles.typeBadgeText}>{item.type}</Text>
+            </View>
+          </View>
           <Text style={styles.preciseTime}>
-            <Ionicons name="calendar-outline" size={10} color="#94a3b8" /> {item.date}  |  <Ionicons name="time-outline" size={10} color="#94a3b8" /> {item.time}
+            <Ionicons name="calendar-outline" size={10} color="#94a3b8" /> {item.date}
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={() => handleShare(item)} style={styles.actionButton}>
-            <Ionicons name="share-social-outline" size={22} color={Colors.primary} />
+        <View style={styles.actionGroup}>
+          <TouchableOpacity onPress={() => generatePDF(item)} style={styles.actionButton}>
+            <Ionicons name="document-text-outline" size={22} color={Colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => deleteRecord(item.id)} style={styles.actionButton}>
             <Ionicons name="trash-outline" size={22} color={Colors.error} />
@@ -127,23 +171,10 @@ _Receipt ID: ${item.id}_`;
       </View>
 
       <View style={styles.cardRow}>
-        <Text style={styles.label}>Annual Gross</Text>
-        <Text style={styles.value}>{formatCurrency(parseFloat(item.income))}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.label}>Est. Monthly Take-Home</Text>
-        <Text style={[styles.value, styles.netText]}>{formatCurrency(item.net / 12)}</Text>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <View style={styles.tagContainer}>
-          <Text style={styles.yearTag}>{item.year} LAW</Text>
-        </View>
-        {item.savings > 0 && (
-          <View style={styles.savingsBadge}>
-             <Text style={styles.savingsText}>Saved {formatCurrency(item.savings)}</Text>
-          </View>
-        )}
+        <Text style={styles.label}>Tax Amount</Text>
+        <Text style={[styles.value, { color: Colors.error }]}>
+            {formatCurrency(item.amount || item.tax || 0)}
+        </Text>
       </View>
     </View>
   );
@@ -151,29 +182,43 @@ _Receipt ID: ${item.id}_`;
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => router.push('/')} style={styles.backButton}>
-            <Text style={styles.backText}>← Back Home</Text>
-          </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Tax Records</Text>
+      </View>
 
-          {history.length > 0 && (
-            <TouchableOpacity onPress={clearAllHistory} style={styles.clearAllBtn}>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Total Saved</Text>
+          <Text style={styles.statValue}>{stats.count}</Text>
         </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>Total Tax Sum</Text>
+          <Text style={[styles.statValue, { color: Colors.error }]}>
+            {formatCurrency(stats.totalTax)}
+          </Text>
+        </View>
+      </View>
 
-        <Text style={styles.title}>CALCULATION HISTORY</Text>
-        <Text style={styles.subtitle}>Track your tax records over time</Text>
+      <View style={styles.filterContainer}>
+        {['ALL', 'PAYE', 'CIT', 'VAT'].map((f: any) => (
+          <TouchableOpacity
+            key={f}
+            onPress={() => setActiveFilter(f)}
+            style={[styles.filterTab, activeFilter === f && styles.activeFilterTab]}
+          >
+            <Text style={[styles.filterText, activeFilter === f && styles.activeFilterText]}>{f}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <TextInput
         value={searchQuery}
         onChangeText={setSearchQuery}
-        placeholder="Search names, amounts or dates..."
+        placeholder="Search name, date, or type..."
         style={styles.searchInput}
         placeholderTextColor="#94a3b8"
-        clearButtonMode="while-editing"
       />
 
       {loading ? (
@@ -184,14 +229,10 @@ _Receipt ID: ${item.id}_`;
           renderItem={renderHistoryItem}
           keyExtractor={item => item.id}
           contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={80} color="#e2e8f0" />
+              <Ionicons name="receipt-outline" size={60} color="#e2e8f0" />
               <Text style={styles.emptyText}>No records found</Text>
-              <TouchableOpacity onPress={() => router.push('/')} style={styles.emptyBtn}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Start Calculating</Text>
-              </TouchableOpacity>
             </View>
           }
         />
@@ -200,74 +241,39 @@ _Receipt ID: ${item.id}_`;
   );
 }
 
+const getTypeColor = (type: string) => {
+  if (type === 'CIT') return '#16a34a';
+  if (type === 'VAT') return '#ea580c';
+  return Colors.primary;
+};
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 16 },
-  header: { marginTop: 20, marginBottom: 15 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  backButton: { paddingVertical: 5 },
-  backText: { color: Colors.primary, fontWeight: '700', fontSize: 15 },
-  clearAllBtn: { backgroundColor: '#fee2e2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  clearAllText: { color: Colors.error, fontWeight: '700', fontSize: 12 },
-  title: { fontSize: 22, fontWeight: '900', color: '#0f172a', textAlign: 'center', letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginTop: 4 },
-  searchInput: {
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 20,
-    color: '#0f172a',
-    fontSize: 15,
-  },
-  historyCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-    alignItems: 'center'
-  },
-  userNameText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#1e293b',
-    textTransform: 'capitalize'
-  },
-  preciseTime: {
-    fontSize: 10,
-    color: '#94a3b8',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginTop: 5,
-    fontWeight: '600'
-  },
-  actionButton: { marginLeft: 12, padding: 4 },
-  tagContainer: { backgroundColor: '#f1f5f9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  yearTag: { fontSize: 9, fontWeight: '800', color: '#64748b' },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  label: { color: '#64748b', fontSize: 13 },
-  value: { fontWeight: '700', color: '#1e293b', fontSize: 15 },
-  netText: { color: '#059669', fontWeight: '800' },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
-    alignItems: 'center'
-  },
-  savingsBadge: { backgroundColor: '#d1fae5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  savingsText: { fontSize: 10, color: '#059669', fontWeight: '800' },
-  emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyText: { color: '#94a3b8', marginTop: 15, fontSize: 16, marginBottom: 25 },
-  emptyBtn: { backgroundColor: Colors.primary, paddingHorizontal: 25, paddingVertical: 12, borderRadius: 12 }
+  container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 16, paddingTop: 50 },
+  header: { marginBottom: 15 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  backText: { color: Colors.primary, fontWeight: '700' },
+  title: { fontSize: 24, fontWeight: '900', color: '#0f172a', marginTop: 10 },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  statBox: { flex: 1, backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' },
+  statLabel: { fontSize: 10, color: '#64748b', textTransform: 'uppercase', fontWeight: '700' },
+  statValue: { fontSize: 16, fontWeight: '800', marginTop: 4 },
+  filterContainer: { flexDirection: 'row', gap: 8, marginBottom: 15 },
+  filterTab: { paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, backgroundColor: '#e2e8f0' },
+  activeFilterTab: { backgroundColor: Colors.primary },
+  filterText: { fontSize: 12, fontWeight: '700', color: '#64748b' },
+  activeFilterText: { color: '#fff' },
+  searchInput: { backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 15 },
+  historyCard: { backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  userNameText: { fontSize: 16, fontWeight: '800', color: '#1e293b' },
+  typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  typeBadgeText: { color: '#fff', fontSize: 9, fontWeight: '900' },
+  preciseTime: { fontSize: 10, color: '#94a3b8', marginTop: 4 },
+  actionGroup: { flexDirection: 'row', gap: 15 },
+  actionButton: { padding: 4 },
+  cardRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  label: { color: '#64748b', fontSize: 12 },
+  value: { fontWeight: '700', fontSize: 14 },
+  emptyState: { alignItems: 'center', marginTop: 60 },
+  emptyText: { color: '#94a3b8', marginTop: 10 }
 });
