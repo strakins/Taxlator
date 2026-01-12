@@ -55,7 +55,7 @@ export default function TaxTypeModal({ visible, onClose }) {
               icon="briefcase"
               title="Freelancer / Self-Employed"
               desc="Tax for freelancers & self-employed"
-              onPress={() => go('/freelancer-tax')}
+              onPress={() => go('/freelancer-calculator')}
             />
 
             <TaxCard

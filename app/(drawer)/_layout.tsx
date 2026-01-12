@@ -92,10 +92,19 @@ export default function Layout() {
       />
 
       <Drawer.Screen
+        name="freelancer-calculator" 
+        options={{
+          drawerLabel: 'Freelance Tax',
+          title: 'FREELANCE Calculator',
+          drawerIcon: ({ color, size }) => <Ionicons name="briefcase-outline" size={size} color={color} />,
+        }}
+      />
+
+      <Drawer.Screen
         name="cit-calculator"
         options={{
           drawerLabel: 'Corporate Tax (CIT)',
-          headerShown: false,
+          title: 'Corporate Calculator',
           drawerIcon: ({ color, size }) => <Ionicons name="business-outline" size={size} color={color} />,
         }}
       />
@@ -104,7 +113,7 @@ export default function Layout() {
         name="vat-calculator"
         options={{
           drawerLabel: 'VAT Calculator',
-          headerShown: false,
+          title: 'VAT Calculator',
           drawerIcon: ({ color, size }) => <Ionicons name="receipt-outline" size={size} color={color} />,
         }}
       />

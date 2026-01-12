@@ -19,15 +19,16 @@ import * as Sharing from 'expo-sharing';
 // --- Shared Assets ---
 import { formatCurrency } from '@/utils/formatter';
 import { Colors } from '@/constants/calculatorstyles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HistoryScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'PAYE' | 'CIT' | 'VAT'>('ALL');
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'PAYE' | 'FREELANCE' | 'CIT' | 'VAT'>('ALL');
 
-  // --- LOAD DATA ---
+  // --- LOAD EXIXTING DATA ---
   const loadHistory = async () => {
     try {
       setLoading(true);
@@ -51,7 +52,7 @@ export default function HistoryScreen() {
     }, [])
   );
 
-  // --- PDF GENERATION ENGINE ---
+  // -- PDF GENERATION ASPECT --
   const generatePDF = async (item: any) => {
     const htmlContent = `
       <html>
@@ -180,64 +181,66 @@ export default function HistoryScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Tax Records</Text>
-      </View>
-
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Total Saved</Text>
-          <Text style={styles.statValue}>{stats.count}</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statLabel}>Total Tax Sum</Text>
-          <Text style={[styles.statValue, { color: Colors.error }]}>
-            {formatCurrency(stats.totalTax)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.filterContainer}>
-        {['ALL', 'PAYE', 'CIT', 'VAT'].map((f: any) => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setActiveFilter(f)}
-            style={[styles.filterTab, activeFilter === f && styles.activeFilterTab]}
-          >
-            <Text style={[styles.filterText, activeFilter === f && styles.activeFilterText]}>{f}</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['left', 'right', 'bottom']}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+          <Text style={styles.title}>Tax Records</Text>
+        </View>
 
-      <TextInput
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search name, date, or type..."
-        style={styles.searchInput}
-        placeholderTextColor="#94a3b8"
-      />
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Total Saved</Text>
+            <Text style={styles.statValue}>{stats.count}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>Total Tax Sum</Text>
+            <Text style={[styles.statValue, { color: Colors.error }]}>
+              {formatCurrency(stats.totalTax)}
+            </Text>
+          </View>
+        </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
-      ) : (
-        <FlatList
-          data={filteredHistory}
-          renderItem={renderHistoryItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={60} color="#e2e8f0" />
-              <Text style={styles.emptyText}>No records found</Text>
-            </View>
-          }
+        <View style={styles.filterContainer}>
+          {['ALL', 'PAYE', 'CIT', 'FREELANCE', 'VAT'].map((f: any) => (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setActiveFilter(f)}
+              style={[styles.filterTab, activeFilter === f && styles.activeFilterTab]}
+            >
+              <Text style={[styles.filterText, activeFilter === f && styles.activeFilterText]}>{f}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search name, date, or type..."
+          style={styles.searchInput}
+          placeholderTextColor="#94a3b8"
         />
-      )}
-    </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
+        ) : (
+          <FlatList
+            data={filteredHistory}
+            renderItem={renderHistoryItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="receipt-outline" size={60} color="#e2e8f0" />
+                <Text style={styles.emptyText}>No records found</Text>
+              </View>
+            }
+          />
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -248,11 +251,35 @@ const getTypeColor = (type: string) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc', paddingHorizontal: 16, paddingTop: 50 },
-  header: { marginBottom: 15 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backText: { color: Colors.primary, fontWeight: '700' },
-  title: { fontSize: 24, fontWeight: '900', color: '#0f172a', marginTop: 10 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8fafc', 
+    paddingHorizontal: 16, 
+    paddingTop: 30 
+  },
+  header: { 
+    marginBottom: 15, 
+  },
+  headerTop: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center' 
+  },
+  backText: { 
+    color: Colors.card, 
+    fontWeight: '700',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 5,
+    width: 60
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: '900', 
+    color: '#0f172a', 
+    marginTop: 10 
+  },
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
   statBox: { flex: 1, backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0' },
   statLabel: { fontSize: 10, color: '#64748b', textTransform: 'uppercase', fontWeight: '700' },

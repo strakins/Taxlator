@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  StyleSheet,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,7 @@ import { Colors, styles as globalStyles } from '../../constants/calculatorstyles
 import { calculateNigeriaTax } from '../../utils/taxEngine';
 import { formatCurrency } from '../../utils/formatter';
 import { saveTaxRecord } from '../../utils/storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TaxlatorCalculator() {
   const router = useRouter();
@@ -177,104 +179,106 @@ export default function TaxlatorCalculator() {
   );
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={globalStyles.safeArea}>
-      <ScrollView contentContainerStyle={globalStyles.scroll} keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={{padding: 20, paddingTop: 60}}>
-          <TouchableOpacity onPress={() => router.back()} style={{marginBottom: 10}}>
-            <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-          </TouchableOpacity>
-          <Text style={{fontSize: 24, fontWeight: '800', color: Colors.primary}}>
-            {step === 1 ? "Income Details" : "Your Tax Result"}
-          </Text>
-        </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['left', 'right', 'bottom']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={globalStyles.safeArea}>
+        <ScrollView contentContainerStyle={globalStyles.scroll} keyboardShouldPersistTaps="handled">
+          {/* Header */}
+          <View style={{padding: 20, paddingTop: 30}}>
+            <TouchableOpacity onPress={() => router.back()} style={{marginBottom: 10}}>
+              <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
+            </TouchableOpacity>
+            <Text style={{fontSize: 24, fontWeight: '800', color: Colors.primary}}>
+              {step === 1 ? "Income Details" : "Your Tax Result"}
+            </Text>
+          </View>
 
-        <View style={{ padding: 20 }}>
-          {step === 1 ? (
-            <View style={globalStyles.stepCard}>
-              {/* Period Selector */}
-              <View style={{flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: 20}}>
-                <TouchableOpacity onPress={() => setPeriod('monthly')} style={[{flex: 1, padding: 10, alignItems: 'center', borderRadius: 8}, period === 'monthly' && {backgroundColor: '#fff'}]}>
-                  <Text style={{fontWeight: '700', color: period === 'monthly' ? Colors.primary : '#94a3b8'}}>Monthly</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setPeriod('annual')} style={[{flex: 1, padding: 10, alignItems: 'center', borderRadius: 8}, period === 'annual' && {backgroundColor: '#fff'}]}>
-                  <Text style={{fontWeight: '700', color: period === 'annual' ? Colors.primary : '#94a3b8'}}>Annual</Text>
+          <View style={{ padding: 20 }}>
+            {step === 1 ? (
+              <View style={globalStyles.stepCard}>
+                {/* Period Selector */}
+                <View style={{flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: 20}}>
+                  <TouchableOpacity onPress={() => setPeriod('monthly')} style={[{flex: 1, padding: 10, alignItems: 'center', borderRadius: 8}, period === 'monthly' && {backgroundColor: '#fff'}]}>
+                    <Text style={{fontWeight: '700', color: period === 'monthly' ? Colors.primary : '#94a3b8'}}>Monthly</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setPeriod('annual')} style={[{flex: 1, padding: 10, alignItems: 'center', borderRadius: 8}, period === 'annual' && {backgroundColor: '#fff'}]}>
+                    <Text style={{fontWeight: '700', color: period === 'annual' ? Colors.primary : '#94a3b8'}}>Annual</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={globalStyles.cardTitle}>Name</Text>
+                <TextInput style={globalStyles.input} value={userName} onChangeText={setUserName} placeholder="John Doe" />
+
+                <Text style={[globalStyles.cardTitle, {marginTop: 15}]}>Gross Income ({period})</Text>
+                <TextInput style={globalStyles.input} value={grossIncome} onChangeText={t => setGrossIncome(formatInput(t))} keyboardType="numeric" placeholder="₦ 0" />
+
+                <Text style={[globalStyles.cardTitle, {marginTop: 15}]}>Other Deductions</Text>
+                <TextInput style={globalStyles.input} value={otherDeductions} onChangeText={t => setOtherDeductions(formatInput(t))} keyboardType="numeric" placeholder="₦ 0" />
+
+                <View style={{marginTop: 20}}>
+                  {renderCheckboxRow("Pension (8%)", includePension, setIncludePension)}
+                  {renderCheckboxRow("Rent Relief (20%)", includeRent, setIncludeRent, is2026 ? "2026 Law - Max ₦500k" : "Not applicable for 2025")}
+                  {includeRent && (
+                    <TextInput style={[globalStyles.input, {marginTop: 10, borderColor: Colors.primary}]} value={rentAmount} onChangeText={t => setRentAmount(formatInput(t))} keyboardType="numeric" placeholder="Annual Rent Paid" />
+                  )}
+                  {renderCheckboxRow("NHIS (5%)", includeNHIS, setIncludeNHIS)}
+                  {renderCheckboxRow("NHF (2.5%)", includeNHF, setIncludeNHF)}
+                </View>
+
+                <TouchableOpacity style={globalStyles.primaryButton} onPress={handleCalculate}>
+                  <Text style={globalStyles.primaryButtonText}>Calculate & Save</Text>
                 </TouchableOpacity>
               </View>
+            ) : (
+              <View>
+                {/* Result View */}
+                <View style={{alignItems: 'center', padding: 20}}>
+                  <Text style={{fontSize: 14, color: Colors.secondaryText}}>Monthly Tax (PAYE)</Text>
+                  <Text style={{fontSize: 42, fontWeight: '900', color: Colors.primary}}>{formatCurrency(calculation.monthlyTax)}</Text>
+                </View>
 
-              <Text style={globalStyles.cardTitle}>Name</Text>
-              <TextInput style={globalStyles.input} value={userName} onChangeText={setUserName} placeholder="John Doe" />
+                <View style={{flexDirection: 'row', gap: 10, marginBottom: 20}}>
+                  <View style={{flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0'}}>
+                    <Text style={{fontSize: 12, color: Colors.secondaryText}}>Monthly Net</Text>
+                    <Text style={{fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.monthlyNet)}</Text>
+                  </View>
+                  <View style={{flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0'}}>
+                    <Text style={{fontSize: 12, color: Colors.secondaryText}}>Annual Net</Text>
+                    <Text style={{fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.annualNet)}</Text>
+                  </View>
+                </View>
 
-              <Text style={[globalStyles.cardTitle, {marginTop: 15}]}>Gross Income ({period})</Text>
-              <TextInput style={globalStyles.input} value={grossIncome} onChangeText={t => setGrossIncome(formatInput(t))} keyboardType="numeric" placeholder="₦ 0" />
+                <TouchableOpacity onPress={() => setShowBreakdown(!showBreakdown)} style={{backgroundColor: '#fff', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, borderWidth: 1, borderColor: '#e2e8f0'}}>
+                  <Text style={{fontWeight: '700'}}>Tax Breakdown</Text>
+                  <Ionicons name={showBreakdown ? "chevron-up" : "chevron-down"} size={20} />
+                </TouchableOpacity>
 
-              <Text style={[globalStyles.cardTitle, {marginTop: 15}]}>Other Deductions</Text>
-              <TextInput style={globalStyles.input} value={otherDeductions} onChangeText={t => setOtherDeductions(formatInput(t))} keyboardType="numeric" placeholder="₦ 0" />
-
-              <View style={{marginTop: 20}}>
-                {renderCheckboxRow("Pension (8%)", includePension, setIncludePension)}
-                {renderCheckboxRow("Rent Relief (20%)", includeRent, setIncludeRent, is2026 ? "2026 Law - Max ₦500k" : "Not applicable for 2025")}
-                {includeRent && (
-                  <TextInput style={[globalStyles.input, {marginTop: 10, borderColor: Colors.primary}]} value={rentAmount} onChangeText={t => setRentAmount(formatInput(t))} keyboardType="numeric" placeholder="Annual Rent Paid" />
+                {showBreakdown && (
+                  <View style={{padding: 15, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 15}}>
+                    <BreakdownRow label="Annual Gross" value={formatCurrency(calculation.annualGross)} />
+                    <BreakdownRow label="Pension Contribution" value={`-${formatCurrency(calculation.deductions.pension)}`} />
+                    {includeRent && <BreakdownRow label="Rent Relief applied" value={formatCurrency(calculation.deductions.rent)} />}
+                    <BreakdownRow label="Total Annual Tax" value={formatCurrency(calculation.annualTax)} bold color={Colors.error} />
+                  </View>
                 )}
-                {renderCheckboxRow("NHIS (5%)", includeNHIS, setIncludeNHIS)}
-                {renderCheckboxRow("NHF (2.5%)", includeNHF, setIncludeNHF)}
+
+                <TouchableOpacity style={globalStyles.primaryButton} onPress={() => setStep(1)}>
+                  <Text style={globalStyles.primaryButtonText}>Recalculate</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[globalStyles.primaryButton, {backgroundColor: Colors.accent, marginTop: 10}]} onPress={generatePDF}>
+                    <Ionicons name="download-outline" size={20} color="white" style={{marginRight: 8}} />
+                    <Text style={globalStyles.primaryButtonText}>Download Receipt (PDF)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => router.replace('/history')} style={{alignItems: 'center', marginTop: 25}}>
+                  <Text style={{color: Colors.primary, fontWeight: '700'}}>View All Saved Records →</Text>
+                </TouchableOpacity>
               </View>
-
-              <TouchableOpacity style={globalStyles.primaryButton} onPress={handleCalculate}>
-                <Text style={globalStyles.primaryButtonText}>Calculate & Save</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View>
-              {/* Result View */}
-              <View style={{alignItems: 'center', padding: 20}}>
-                <Text style={{fontSize: 14, color: Colors.secondaryText}}>Monthly Tax (PAYE)</Text>
-                <Text style={{fontSize: 42, fontWeight: '900', color: Colors.primary}}>{formatCurrency(calculation.monthlyTax)}</Text>
-              </View>
-
-              <View style={{flexDirection: 'row', gap: 10, marginBottom: 20}}>
-                <View style={{flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0'}}>
-                  <Text style={{fontSize: 12, color: Colors.secondaryText}}>Monthly Net</Text>
-                  <Text style={{fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.monthlyNet)}</Text>
-                </View>
-                <View style={{flex: 1, backgroundColor: '#fff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0'}}>
-                  <Text style={{fontSize: 12, color: Colors.secondaryText}}>Annual Net</Text>
-                  <Text style={{fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.annualNet)}</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity onPress={() => setShowBreakdown(!showBreakdown)} style={{backgroundColor: '#fff', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, borderWidth: 1, borderColor: '#e2e8f0'}}>
-                <Text style={{fontWeight: '700'}}>Tax Breakdown</Text>
-                <Ionicons name={showBreakdown ? "chevron-up" : "chevron-down"} size={20} />
-              </TouchableOpacity>
-
-              {showBreakdown && (
-                <View style={{padding: 15, backgroundColor: '#f8fafc', borderRadius: 12, marginBottom: 15}}>
-                  <BreakdownRow label="Annual Gross" value={formatCurrency(calculation.annualGross)} />
-                  <BreakdownRow label="Pension Contribution" value={`-${formatCurrency(calculation.deductions.pension)}`} />
-                  {includeRent && <BreakdownRow label="Rent Relief applied" value={formatCurrency(calculation.deductions.rent)} />}
-                  <BreakdownRow label="Total Annual Tax" value={formatCurrency(calculation.annualTax)} bold color={Colors.error} />
-                </View>
-              )}
-
-              <TouchableOpacity style={globalStyles.primaryButton} onPress={() => setStep(1)}>
-                <Text style={globalStyles.primaryButtonText}>Recalculate</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={[globalStyles.primaryButton, {backgroundColor: Colors.accent, marginTop: 10}]} onPress={generatePDF}>
-                  <Ionicons name="download-outline" size={20} color="white" style={{marginRight: 8}} />
-                  <Text style={globalStyles.primaryButtonText}>Download Receipt (PDF)</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => router.replace('/history')} style={{alignItems: 'center', marginTop: 25}}>
-                <Text style={{color: Colors.primary, fontWeight: '700'}}>View All Saved Records →</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -286,3 +290,15 @@ function BreakdownRow({ label, value, bold, color }: any) {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  backText: { 
+    color: Colors.card, 
+    fontWeight: '700',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 5,
+    width: 60
+  },
+})
