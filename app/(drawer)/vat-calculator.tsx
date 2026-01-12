@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,240 +6,264 @@ import {
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
-  StyleSheet,
   Platform,
   Alert,
+  StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+import { useRouter } from 'expo-router';
 
-// --- STORAGE & UTILS ---
+// Shared utilities
 import { saveTaxRecord } from '@/utils/storage';
 import { Colors, styles as globalStyles } from '@/constants/calculatorstyles';
 import { formatCurrency } from '@/utils/formatter';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
+
+/*---- VAT TRANSACTION TYPES (RADIO LOGIC) ----*/
+const VAT_TYPES = [
+  {
+    id: 'domestic',
+    label: 'Domestic Sales / Purchases (7.5%)',
+    rate: 0.075,
+  },
+  {
+    id: 'digital',
+    label: 'Digital Services (7.5%)',
+    rate: 0.075,
+  },
+  {
+    id: 'export',
+    label: 'Export / International (0%)',
+    rate: 0,
+  },
+  {
+    id: 'exempt',
+    label: 'Exempt Items (No VAT)',
+    rate: 0,
+  },
+];
 
 export default function VATCalculator() {
   const router = useRouter();
 
-  // --- STATE ---
+  const [step, setStep] = useState(1);
   const [amount, setAmount] = useState('');
-  const [vatRate, setVatRate] = useState('10');
-  const [calcType, setCalcType] = useState<'add' | 'remove'>('add');
-  const [description, setDescription] = useState('');
+  const [isAddingVAT, setIsAddingVAT] = useState(true);
+  const [selectedType, setSelectedType] = useState(VAT_TYPES[0]);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
-  // --- LOGIC ---
+  /* ------------------ */
+  /* Helpers            */
+  /* ------------------ */
   const formatInput = (text: string) => {
-    const numericValue = text.replace(/[^0-9]/g, '');
-    return numericValue ? Number(numericValue).toLocaleString() : '';
+    const numeric = text.replace(/[^0-9]/g, '');
+    return numeric ? Number(numeric).toLocaleString() : '';
   };
 
-  const parseNumber = (value: string) => parseFloat(value.replace(/,/g, '')) || 0;
+  const parseAmount = (value: string) =>
+    parseFloat(value.replace(/,/g, '')) || 0;
 
+  /* ------------------ */
+  /* VAT CALCULATION    */
+  /* ------------------ */
   const calculation = useMemo(() => {
-    const rawAmount = parseNumber(amount);
-    const rate = parseNumber(vatRate) / 100;
+    const baseAmount = parseAmount(amount);
+    const rate = selectedType.rate;
 
     let vatAmount = 0;
-    let baseAmount = 0;
-    let totalAmount = 0;
+    let netAmount = 0;
 
-    if (calcType === 'add') {
-      baseAmount = rawAmount;
-      vatAmount = rawAmount * rate;
-      totalAmount = rawAmount + vatAmount;
+    if (rate === 0) {
+      vatAmount = 0;
+      netAmount = baseAmount;
+    } else if (isAddingVAT) {
+      vatAmount = baseAmount * rate;
+      netAmount = baseAmount + vatAmount;
     } else {
-      totalAmount = rawAmount;
-      baseAmount = rawAmount / (1 + rate);
-      vatAmount = rawAmount - baseAmount;
+      vatAmount = baseAmount - baseAmount / (1 + rate);
+      netAmount = baseAmount - vatAmount;
     }
 
-    return { baseAmount, vatAmount, totalAmount };
-  }, [amount, vatRate, calcType]);
+    return {
+      baseAmount,
+      vatAmount,
+      netAmount,
+      rateText: `${rate * 100}%`,
+    };
+  }, [amount, selectedType, isAddingVAT]);
 
-  // --- SAVE & PDF LOGIC ---
-  const handleSaveAndPrint = async (shouldPrint = false) => {
-    if (parseNumber(amount) <= 0) {
-      Alert.alert("Error", "Please enter a valid amount.");
+  /* ------------------ */
+  /* SAVE & PROCEED     */
+  /* ------------------ */
+  const handleCalculate = async () => {
+    if (!amount) {
+      Alert.alert('Missing Amount', 'Please enter a transaction amount.');
       return;
     }
 
     const record = {
       id: Date.now().toString(),
       type: 'VAT',
-      title: description || (calcType === 'add' ? 'Sales Invoice' : 'Purchase Receipt'),
-      userName: description || 'VAT Record',
-      income: calculation.baseAmount.toString(), // Base price for history stats
-      tax: calculation.vatAmount.toString(),     // VAT amount for history stats
-      net: calculation.totalAmount.toString(),
+      title: 'Value Added Tax',
+      userName: selectedType.label,
+      income: calculation.baseAmount.toString(),
+      tax: calculation.vatAmount.toString(),
+      net: calculation.netAmount.toString(),
       date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
       year: '2026',
     };
 
     await saveTaxRecord(record);
-
-    if (shouldPrint) {
-      generatePDF(record);
-    } else {
-      Alert.alert("Success", "VAT record saved to history.");
-    }
+    setStep(2);
   };
 
-  const generatePDF = async (item: any) => {
-    const html = `
-      <html>
-        <head>
-          <style>
-            body { font-family: 'Helvetica'; padding: 40px; color: #1e293b; }
-            .header { text-align: center; border-bottom: 2px solid ${Colors.primary}; padding-bottom: 20px; }
-            .title { color: ${Colors.primary}; font-size: 24px; font-weight: bold; }
-            .table { width: 100%; margin-top: 30px; border-collapse: collapse; }
-            .table td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-            .label { color: #64748b; font-size: 14px; }
-            .value { font-weight: bold; text-align: right; }
-            .total-row { background-color: #f8fafc; color: ${Colors.primary}; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1 class="title">VAT ASSESSMENT RECEIPT</h1>
-            <p>Fiscal Year 2026</p>
-          </div>
-          <p style="margin-top: 20px;"><strong>Description:</strong> ${item.title}</p>
-          <table class="table">
-            <tr><td class="label">Net Amount (Base)</td><td class="value">${formatCurrency(item.income)}</td></tr>
-            <tr><td class="label">VAT Rate</td><td class="value">${vatRate}%</td></tr>
-            <tr><td class="label">VAT Amount</td><td class="value">+ ${formatCurrency(item.tax)}</td></tr>
-            <tr class="total-row">
-              <td class="label" style="font-weight:bold">Total Gross Amount</td>
-              <td class="value">${formatCurrency(item.net)}</td>
-            </tr>
-          </table>
-          <p style="text-align:center; font-size:10px; margin-top:50px; color:#94a3b8;">Generated via Taxlator Nigeria</p>
-        </body>
-      </html>
-    `;
-    try {
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri);
-    } catch (e) {
-      Alert.alert("Error", "Could not generate PDF");
-    }
-  };
-
+  /* ------------------ */
+  /* UI                 */
+  /* ------------------ */
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['left', 'right', 'bottom']}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={globalStyles.safeArea}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
         <ScrollView contentContainerStyle={globalStyles.scroll}>
-
-          <View style={{padding: 20, paddingTop: 30}}>
-            <TouchableOpacity onPress={() => router.back()} style={{marginBottom: 10}}>
-              <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
+          {/* Header */}
+          <View style={{ padding: 20, paddingTop: 30 }}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.backText}>
+                <Ionicons name="chevron-back-outline" /> Back
+              </Text>
             </TouchableOpacity>
-            <Text style={{fontSize: 24, fontWeight: '800', color: Colors.primary}}>VAT Calculator</Text>
-            <Text style={{color: Colors.secondaryText, fontSize: 13}}>2026 Standard Rate: 10%</Text>
+
+            <Text style={styles.title}>Value Added Tax (VAT)</Text>
+            <Text style={styles.subtitle}>Nigeria VAT Rules (2026)</Text>
           </View>
 
           <View style={{ padding: 20 }}>
-            <View style={globalStyles.stepCard}>
-              <View style={{flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: 20}}>
-                <TouchableOpacity
-                  onPress={() => setCalcType('add')}
-                  style={[{flex: 1, padding: 12, alignItems: 'center', borderRadius: 8}, calcType === 'add' && {backgroundColor: '#fff', shadowOpacity: 0.1, elevation: 2}]}
-                >
-                  <Text style={{fontWeight: '700', color: calcType === 'add' ? Colors.primary : '#94a3b8'}}>Add VAT</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setCalcType('remove')}
-                  style={[{flex: 1, padding: 12, alignItems: 'center', borderRadius: 8}, calcType === 'remove' && {backgroundColor: '#fff', shadowOpacity: 0.1, elevation: 2}]}
-                >
-                  <Text style={{fontWeight: '700', color: calcType === 'remove' ? Colors.primary : '#94a3b8'}}>VAT Inclusive</Text>
-                </TouchableOpacity>
-              </View>
+            {step === 1 ? (
+              <View style={globalStyles.stepCard}>
+                {/* Amount */}
+                <Text style={globalStyles.cardTitle}>Transaction Amount (₦)</Text>
+                <TextInput
+                  style={globalStyles.input}
+                  value={amount}
+                  onChangeText={(t) => setAmount(formatInput(t))}
+                  keyboardType="numeric"
+                  placeholder="0"
+                />
 
-              <Text style={globalStyles.cardTitle}>Item Description (Optional)</Text>
-              <TextInput
-                style={[globalStyles.input, {marginBottom: 15}]}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="e.g. Office Equipment"
-              />
+                {/* Add or Extract VAT */}
+                <View style={styles.toggleRow}>
+                  <ToggleButton
+                    active={isAddingVAT}
+                    label="Add VAT"
+                    onPress={() => setIsAddingVAT(true)}
+                  />
+                  <ToggleButton
+                    active={!isAddingVAT}
+                    label="Extract VAT"
+                    onPress={() => setIsAddingVAT(false)}
+                  />
+                </View>
 
-              <Text style={globalStyles.cardTitle}>{calcType === 'add' ? 'Net Amount (Before VAT)' : 'Gross Amount (Total)'}</Text>
-              <TextInput
-                style={[globalStyles.input, {fontSize: 22, fontWeight: '700'}]}
-                value={amount}
-                onChangeText={t => setAmount(formatInput(t))}
-                keyboardType="numeric"
-                placeholder="₦ 0"
-              />
+                {/* Transaction Type */}
+                <Text style={[globalStyles.cardTitle, { marginTop: 20 }]}>
+                  Transaction Type
+                </Text>
 
-              <Text style={[globalStyles.cardTitle, {marginTop: 20}]}>VAT Rate (%)</Text>
-              <View style={{flexDirection: 'row', gap: 10, marginTop: 5}}>
-                {['7.5', '10', '15'].map((rate) => (
+                {VAT_TYPES.map((item) => (
                   <TouchableOpacity
-                    key={rate}
-                    onPress={() => setVatRate(rate)}
-                    style={{
-                      flex: 1, padding: 10, borderRadius: 8, borderWidth: 1,
-                      borderColor: vatRate === rate ? Colors.primary : Colors.border,
-                      backgroundColor: vatRate === rate ? '#eff6ff' : '#fff',
-                      alignItems: 'center'
-                    }}
+                    key={item.id}
+                    style={[
+                      styles.rateRow,
+                      selectedType.id === item.id && styles.rateRowActive,
+                    ]}
+                    onPress={() => setSelectedType(item)}
                   >
-                    <Text style={{fontWeight: '700', color: vatRate === rate ? Colors.primary : Colors.secondaryText}}>{rate}%</Text>
+                    <Text style={{ fontWeight: '600', flex: 1 }}>
+                      {item.label}
+                    </Text>
+                    <Ionicons
+                      name={
+                        selectedType.id === item.id
+                          ? 'radio-button-on'
+                          : 'radio-button-off'
+                      }
+                      size={20}
+                      color={Colors.primary}
+                    />
                   </TouchableOpacity>
                 ))}
+
+                <TouchableOpacity
+                  style={[globalStyles.primaryButton, { marginTop: 30 }]}
+                  onPress={handleCalculate}
+                >
+                  <Text style={globalStyles.primaryButtonText}>
+                    Calculate VAT
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </View>
+            ) : (
+              <View>
+                {/* Result */}
+                <View style={styles.resultCard}>
+                  <Text style={styles.resultLabel}>VAT Amount</Text>
+                  <Text style={styles.resultValue}>
+                    {formatCurrency(calculation.vatAmount)}
+                  </Text>
+                  <Text style={styles.smallText}>
+                    {selectedType.label}
+                  </Text>
+                </View>
 
-            {/* RESULT BOX */}
-            {parseNumber(amount) > 0 && (
-              <>
-                <View style={{marginTop: 20, backgroundColor: Colors.primary, borderRadius: 20, padding: 24, shadowColor: Colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5}}>
-                  <Text style={{color: '#bfdbfe', fontSize: 14, fontWeight: '600'}}>Total Amount</Text>
-                  <Text style={{color: '#fff', fontSize: 32, fontWeight: '900', marginVertical: 5}}>{formatCurrency(calculation.totalAmount)}</Text>
+                {/* Breakdown */}
+                <TouchableOpacity
+                  onPress={() => setShowBreakdown(!showBreakdown)}
+                  style={styles.breakdownToggle}
+                >
+                  <Text style={{ fontWeight: '700' }}>
+                    Detailed Breakdown
+                  </Text>
+                  <Ionicons
+                    name={showBreakdown ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                  />
+                </TouchableOpacity>
 
-                  <View style={{height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 15}} />
-
-                  <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
-                    <View>
-                      <Text style={{color: '#bfdbfe', fontSize: 12}}>Base Price</Text>
-                      <Text style={{color: '#fff', fontSize: 16, fontWeight: '700'}}>{formatCurrency(calculation.baseAmount)}</Text>
-                    </View>
-                    <View style={{alignItems: 'flex-end'}}>
-                      <Text style={{color: '#bfdbfe', fontSize: 12}}>VAT ({vatRate}%)</Text>
-                      <Text style={{color: '#fff', fontSize: 16, fontWeight: '700'}}>+ {formatCurrency(calculation.vatAmount)}</Text>
-                    </View>
+                {showBreakdown && (
+                  <View style={styles.breakdownCard}>
+                    <DetailRow
+                      label="Base Amount"
+                      value={formatCurrency(calculation.baseAmount)}
+                    />
+                    <DetailRow
+                      label={`VAT (${calculation.rateText})`}
+                      value={formatCurrency(calculation.vatAmount)}
+                    />
+                    <DetailRow
+                      label="Net Amount"
+                      value={formatCurrency(calculation.netAmount)}
+                      bold
+                    />
                   </View>
-                </View>
+                )}
 
-                <View style={{flexDirection: 'row', gap: 10, marginTop: 15}}>
-                  <TouchableOpacity
-                    style={[globalStyles.primaryButton, {flex: 1, backgroundColor: '#fff', borderWidth: 2, borderColor: Colors.primary}]}
-                    onPress={() => handleSaveAndPrint(false)}
-                  >
-                    <Ionicons name="save-outline" size={20} color={Colors.primary} />
-                    <Text style={{color: Colors.primary, fontWeight: '700', marginLeft: 8}}>Save</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[globalStyles.primaryButton, {flex: 1.5}]}
-                    onPress={() => handleSaveAndPrint(true)}
-                  >
-                    <Ionicons name="document-text-outline" size={20} color="white" />
-                    <Text style={{color: 'white', fontWeight: '700', marginLeft: 8}}>PDF Receipt</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
+                <TouchableOpacity
+                  style={globalStyles.primaryButton}
+                  onPress={() => setStep(1)}
+                >
+                  <Text style={globalStyles.primaryButtonText}>
+                    New Calculation
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
-
-            <TouchableOpacity onPress={() => router.replace('/history')} style={{alignItems: 'center', marginTop: 30}}>
-              <Text style={{color: Colors.primary, fontWeight: '700'}}>View Records →</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -247,6 +271,38 @@ export default function VATCalculator() {
   );
 }
 
+/* ------------------ */
+/* Reusable Components */
+/* ------------------ */
+function ToggleButton({ active, label, onPress }: any) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.toggleButton,
+        active && { backgroundColor: Colors.primary },
+      ]}
+    >
+      <Text style={{ color: active ? '#fff' : Colors.text }}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+function DetailRow({ label, value, bold }: any) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={[styles.detailValue, bold && { fontWeight: '800' }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+
+/*----Styles-----*/
 
 const styles = StyleSheet.create({
   backText: { 
@@ -256,6 +312,90 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 5,
-    width: 60
+    width: 60,
   },
-})
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: Colors.secondaryText,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 15,
+  },
+  toggleButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    alignItems: 'center',
+  },
+  rateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginTop: 10,
+  },
+  rateRowActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#eff6ff',
+  },
+  resultCard: {
+    alignItems: 'center',
+    padding: 25,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 20,
+  },
+  resultLabel: {
+    color: Colors.secondaryText,
+  },
+  resultValue: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: Colors.primary,
+    marginVertical: 10,
+  },
+  smallText: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+  },
+  breakdownToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 10,
+  },
+  breakdownCard: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 20,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  detailLabel: {
+    color: Colors.secondaryText,
+  },
+  detailValue: {
+    fontWeight: '600',
+  },
+});

@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {styles, Colors} from '@/constants/landingpagestyles';
 import TaxTypeModal from '@/components/TaxTypeModal';
+import { Ionicons } from '@expo/vector-icons';
 
 
 const { width } = Dimensions.get('window');
@@ -65,37 +66,69 @@ export default function Index() {
         </Section>
 
         {/* ================= TAX TIPS ================= */}
-        <Section title="Latest Tax Tips & Updates" subtitle="Helpful Nigerian tax guides">
+        <Section
+          title="Latest Tax Tips & Updates"
+          subtitle="Stay informed with helpful tax guides and insights"
+        >
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16 }}
+            contentContainerStyle={{ paddingLeft: 16 }}
           >
-            <TipCard title="Understanding PAYE Tax Bands in Nigeria"  />
-            <TipCard title="Tax Tips for Freelancers and Self-Employed" />
-            <TipCard title="Company Income Tax: What Businesses Should Know" />
+            <TipCard
+              image={require('../../assets/images/taxUpadate1.png')}
+              tag="PAYE"
+              title="Understanding PAYE Tax Bands in Nigeria"
+              description="Learn how progressive tax rates from 7% to 24% apply to your income and what it means for your take-home pay."
+            />
+
+            <TipCard
+              image={require('../../assets/images/taxUpdate3.png')}
+              tag="Freelancer"
+              title="Tax Tips for Freelancers and Self-Employed"
+              description="Discover legitimate business expenses you can deduct and how to optimize your tax payments as a freelancer."
+            />
+
+            <TipCard
+              image={require('../../assets/images/taxUpdate2.png')}
+              tag="CIT"
+              title="Company Income Tax: What Business Owners Should Know"
+              description="A comprehensive guide to CIT rates, allowable deductions, and compliance requirements for Nigerian businesses."
+            />
           </ScrollView>
         </Section>
 
+
         {/* ================= ABOUT ================= */}
-        <Section title="About" subtitle="Why Nigerians trust Taxlator">
+        <Section
+          title="About"
+          subtitle="Essential facts every Nigerian taxpayer should know about us"
+        >
           <AboutCard
+            icon="checkmark-circle-outline"
             title="Accurate Calculations"
-            text="Built using Nigerian tax laws."
+            text="Powered by the latest tax rules, Taxlator ensures your results are correct and dependable."
           />
+
           <AboutCard
-            title="Instant Salary Breakdown"
-            text="See exactly how your tax is calculated."
+            icon="stats-chart-outline"
+            title="Instant Breakdown of Your Salary"
+            text="Powered by the latest tax rules, Taxlator ensures your results are correct and dependable."
           />
+
           <AboutCard
-            title="Perfect for Workers & Businesses"
-            text="From PAYE to company tax."
+            icon="people-outline"
+            title="Perfect for Workers, Students & Businesses"
+            text="Whether you're employed or self-employed, Taxlator helps you stay financially informed."
           />
+
           <AboutCard
-            title="Simple & Easy to Use"
-            text="No complex forms or stress."
+            icon="sparkles-outline"
+            title="Simple, Beautiful & Easy to Use"
+            text="Designed to remove confusion and make tax calculations effortless."
           />
         </Section>
+
 
         {/* ================= CTA ================= */}
         <View style={styles.ctaBox}>
@@ -124,7 +157,7 @@ export default function Index() {
 /* ================= COMPONENTS ================= */
 
 const Section = ({ title, subtitle, children }) => (
-  <View style={{ marginTop: 30 }}>
+  <View style={{ marginTop: 30, borderTopWidth: 0.5, paddingTop: 15 }}>
     <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
       <Text style={styles.sectionTitle}>{title}</Text>
       <Text style={styles.sectionSubtitle}>{subtitle}</Text>
@@ -145,18 +178,34 @@ const HowCard = ({ num, title, text }) => (
   </View>
 );
 
-const TipCard = ({ title, }) => (
+
+const TipCard = ({ image, tag, title, description }) => (
   <View style={styles.tipCard}>
-    <Text style={styles.tipTitle}>{title}</Text>
-    <Text style={styles.readMore}>Read more →</Text>
+    <Image source={image} style={styles.tipImage} />
+
+    <View style={styles.tipContent}>
+      <View style={styles.tipTag}>
+        <Text style={styles.tipTagText}>{tag}</Text>
+      </View>
+
+      <Text style={styles.tipTitle}>{title}</Text>
+      <Text style={styles.tipDescription}>{description}</Text>
+
+      <Text style={styles.readMore}>Read More →</Text>
+    </View>
   </View>
 );
 
-const AboutCard = ({ title, text }) => (
+
+const AboutCard = ({ icon, title, text }) => (
   <View style={styles.aboutCard}>
-    <Text style={styles.aboutTitle}>{title}</Text>
-    <Text style={styles.aboutText}>{text}</Text>
+    <Ionicons name={icon} size={26} color={Colors.primary} />
+    <View style={{ marginLeft: 12, flex: 1 }}>
+      <Text style={styles.aboutTitle}>{title}</Text>
+      <Text style={styles.aboutText}>{text}</Text>
+    </View>
   </View>
 );
+
 
 

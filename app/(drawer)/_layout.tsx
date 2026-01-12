@@ -44,7 +44,7 @@ function CustomDrawerContent(props: any) {
                 onPress={() => Linking.openURL('https://firs.gov.ng')}
             >
                 <Ionicons name="globe-outline" size={20} color="#64748b" />
-                <Text style={styles.infoLinkText}>Visit FIRS Website</Text>
+                <Text style={styles.infoLinkText}>Visit NRS Website</Text>
             </TouchableOpacity>
         </View>
 
@@ -121,9 +121,9 @@ export default function Layout() {
       <Drawer.Screen
         name="history"
         options={{
-          drawerLabel: 'Saved Records',
+          drawerLabel: 'History',
           title: 'History',
-          drawerIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} />,
+          drawerIcon: ({ color, size }) => <Ionicons name="list-outline" size={size} color={color} />,
         }}
       />
 

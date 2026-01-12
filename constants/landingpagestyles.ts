@@ -48,8 +48,62 @@ export const styles = StyleSheet.create({
   },
   primaryCTAText: { color: '#fff', fontWeight: '800' },
 
-  sectionTitle: { fontSize: 18, fontWeight: '800', textAlign: "center", color: Colors.primary },
-  sectionSubtitle: { color: Colors.secondaryText, textAlign: "center" },
+  tipCard: {
+    width: width * 0.75,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+
+  tipImage: {
+    width: '100%',
+    height: 120,
+  },
+
+  tipContent: {
+    padding: 14,
+  },
+
+  tipTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1e3a8a',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+
+  tipTagText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  tipTitle: {
+    fontWeight: '800',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+
+  tipDescription: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    marginBottom: 10,
+  },
+
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: '800', 
+    textAlign: "center", 
+    color: Colors.primary 
+  },
+  sectionSubtitle: { 
+    color: Colors.secondaryText, 
+    textAlign: "center" 
+  },
 
   howCard: {
     flexDirection: 'row',
@@ -65,7 +119,7 @@ export const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: Colors.primary,
-    justifyContent: 'center',
+    justifyContent: 'center', 
     alignItems: 'center',
     marginRight: 12,
   },
@@ -73,26 +127,19 @@ export const styles = StyleSheet.create({
   howTitle: { fontWeight: '700' },
   howText: { color: Colors.secondaryText },
 
-  tipCard: {
-    width: width * 0.7,
-    backgroundColor: Colors.card,
-    padding: 16,
-    borderRadius: 14,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  tipTitle: { fontWeight: '700', marginBottom: 10 },
   readMore: { color: Colors.primary },
 
   aboutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.card,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
   },
+
   aboutTitle: { fontWeight: '700' },
   aboutText: { color: Colors.secondaryText },
 
@@ -112,4 +159,7 @@ export const styles = StyleSheet.create({
     borderRadius: 10,
   },
   ctaButtonText: { color: Colors.primary, fontWeight: '700' },
+
+  
+
 });
