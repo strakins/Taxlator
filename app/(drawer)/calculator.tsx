@@ -1,561 +1,309 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
   StyleSheet,
   LayoutAnimation,
-  Platform,
-  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { calculateNigeriaPAYE } from '../../utils/taxEnginex';
-import { Colors } from '../../constants/calculatorstyles';
+import { useRouter } from 'expo-router';
+
+// Shared utilities
 import { saveTaxRecord } from '@/utils/storage';
+import { Colors } from '@/constants/calculatorstyles';
+import { formatCurrency } from '@/utils/formatter';
+import { calculateNigeriaPAYE } from '@/utils/taxEnginex';
 
+export default function PAYECalculator() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
 
-if (Platform.OS === 'android') {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
-}
-
-/* ===================== HELPERS ===================== */
-const formatWithCommas = (value: string) => {
-  const numeric = value.replace(/[^0-9]/g, '');
-  if (!numeric) return '';
-  return Number(numeric).toLocaleString();
-};
-
-const parseCurrency = (value: string) =>
-  Number(value.replace(/,/g, '')) || 0;
-
-const formatCurrency = (n: number) =>
-  `₦${n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-  })}`;
-
-const HISTORY_KEY = '@taxlator_history';
-
-/* ===================== COMPONENT ===================== */
-export default function TaxlatorCalculator() {
-  const [step, setStep] = useState<'form' | 'result'>('form');
-
+  // Input States
   const [grossIncome, setGrossIncome] = useState('');
-  const [rent, setRent] = useState('');
+  const [rentPaid, setRentPaid] = useState('');
   const [otherDeductions, setOtherDeductions] = useState('');
 
+  // Deduction Toggles
   const [includePension, setIncludePension] = useState(true);
   const [includeNHF, setIncludeNHF] = useState(true);
   const [includeNHIS, setIncludeNHIS] = useState(true);
-  const [includeRent, setIncludeRent] = useState(false);
+  const [showRentInput, setShowRentInput] = useState(false);
 
-  const [errors, setErrors] = useState<any>({});
   const [showBreakdown, setShowBreakdown] = useState(false);
 
-  /* ===================== VALIDATION ===================== */
-  const validate = () => {
-    const e: any = {};
-
-    if (!grossIncome) e.grossIncome = 'Gross income is required';
-    if (includeRent && !rent)
-      e.rent = 'Rent amount is required';
-
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const formatInput = (text: string) => {
+    const numeric = text.replace(/[^0-9]/g, '');
+    return numeric ? Number(numeric).toLocaleString() : '';
   };
 
-  /* ===================== CALCULATION ===================== */
+  const parseAmount = (value: string) => parseFloat(value.replace(/,/g, '')) || 0;
+
   const calculation = useMemo(() => {
-    return calculateNigeriaPAYE(parseCurrency(grossIncome), {
+    return calculateNigeriaPAYE(parseAmount(grossIncome), {
       includePension,
       includeNHF,
       includeNHIS,
-      rentPaid: includeRent ? parseCurrency(rent) : 0,
-      otherDeductions: parseCurrency(otherDeductions),
+      rentPaid: showRentInput ? parseAmount(rentPaid) : 0,
+      otherDeductions: parseAmount(otherDeductions),
       is2026: true,
     });
-  }, [
-    grossIncome,
-    rent,
-    otherDeductions,
-    includePension,
-    includeNHF,
-    includeNHIS,
-    includeRent,
-  ]);
+  }, [grossIncome, includePension, includeNHF, includeNHIS, showRentInput, rentPaid, otherDeductions]);
 
-  /* ===================== ACTIONS ===================== */
-  const handleProceed = async () => {
-  if (!validate()) return;
+  const handleCalculate = async () => {
+    if (!grossIncome) {
+      Alert.alert('Required Field', 'Please enter your annual gross income.');
+      return;
+    }
 
-  const record = {
-    id: Date.now().toString(),
-    type: 'PAYE',
-    title: 'PAYE / Personal Income Tax',
-    userName: 'Salaried Employee',
-    income: calculation.annualGross.toString(),
-    tax: calculation.annualTax.toString(),
-    net: calculation.annualNet.toString(),
-    date: new Date().toLocaleDateString(),
-    time: new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    year: '2026',
+    await saveTaxRecord({
+      id: Date.now().toString(),
+      type: 'PAYE',
+      title: 'PAYE / Personal Income Tax',
+      userName: 'Salaried Employee',
+      income: calculation.annualGross.toString(),
+      tax: calculation.annualTax.toString(),
+      net: calculation.annualNet.toString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      year: '2026',
+    });
 
-    // 👇 Optional extended payload (safe to store)
-    meta: {
-      CRA: calculation.CRA,
-      taxableIncome: calculation.taxableIncome,
-      monthlyTax: calculation.monthlyTax,
-      deductions: calculation.deductions,
-      breakdown: calculation.breakdown,
-    },
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setStep(2);
   };
 
-  await saveTaxRecord(record);
-
-  LayoutAnimation.configureNext(
-    LayoutAnimation.Presets.easeInEaseOut
-  );
-  setStep('result');
-};
-
-
-
-  const resetCalculator = () => {
-    LayoutAnimation.configureNext(
-      LayoutAnimation.Presets.easeInEaseOut
-    );
-
-    setGrossIncome('');
-    setRent('');
-    setOtherDeductions('');
-    setIncludePension(true);
-    setIncludeNHF(true);
-    setIncludeNHIS(true);
-    setIncludeRent(false);
-    setErrors({});
-    setShowBreakdown(false);
-    setStep('form');
-  };
-
-  /* ===================== RENDER ===================== */
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {step === 'form' ? (
-          <>
-            <Text style={styles.header}>
-              PAYE / PIT Calculator
-            </Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scroll}>
 
-            <Text style={styles.label}>
-              Annual Gross Income
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                errors.grossIncome && styles.errorInput,
-              ]}
-              keyboardType="numeric"
-              placeholder="₦ 0"
-              value={grossIncome}
-              onChangeText={t =>
-                setGrossIncome(formatWithCommas(t))
-              }
-            />
-            {errors.grossIncome && (
-              <Text style={styles.errorText}>
-                {errors.grossIncome}
+          {/* Header Section */}
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtnContainer}>
+               <Ionicons name="chevron-back-outline" size={18} color="#1e3a8a" />
+               <Text style={styles.backBtnText}>Back</Text>
+            </TouchableOpacity>
+
+            <View style={styles.headerTextWrapper}>
+              <Text style={styles.title}>PAYE / PIT Calculator</Text>
+              <Text style={styles.subtitle}>
+                Calculate your Personal Income Tax based on the latest 2026 Nigerian tax laws.
               </Text>
-            )}
+            </View>
+          </View>
 
-            
-
-            {renderCheck(
-              'Pension (8%)',
-              includePension,
-              setIncludePension
-            )}
-            {renderCheck(
-              'NHF (2.5%)',
-              includeNHF,
-              setIncludeNHF
-            )}
-            {renderCheck(
-              'NHIS (5%)',
-              includeNHIS,
-              setIncludeNHIS
-            )}
-            {renderCheck(
-              'Rent Relief (20%)',
-              includeRent,
-              setIncludeRent
-            )}
-
-            {includeRent && (
-              <>
+          <View style={{ padding: 20 }}>
+            {step === 1 ? (
+              <View style={styles.formContainer}>
+                <Text style={styles.inputLabel}>Annual Gross Income</Text>
                 <TextInput
-                  style={[
-                    styles.input,
-                    errors.rent && styles.errorInput,
-                  ]}
+                  style={styles.mainInput}
+                  value={grossIncome}
+                  onChangeText={(t) => setGrossIncome(formatInput(t))}
                   keyboardType="numeric"
-                  placeholder="Annual Rent Paid"
-                  value={rent}
-                  onChangeText={t =>
-                    setRent(formatWithCommas(t))
-                  }
-                />
-                {errors.rent && (
-                  <Text style={styles.errorText}>
-                    {errors.rent}
-                  </Text>
-                )}
-              </>
-            )}
-
-            <Text style={styles.label}>
-              Other Deductions
-            </Text>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              placeholder="₦ 0"
-              value={otherDeductions}
-              onChangeText={t =>
-                setOtherDeductions(formatWithCommas(t))
-              }
-            />
-
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleProceed}
-            >
-              <Text style={styles.primaryButtonText}>
-                Proceed
-              </Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            {/* ================= RESULT ================= */}
-            <View style={styles.resultCard}>
-              <Text style={styles.resultLabel}>
-                Salaried (PAYE / PIT) Result
-              </Text>
-              <Text style={styles.resultValue}>
-                {formatCurrency(calculation.annualTax)}
-              </Text>
-              <Text style={styles.subText}>
-                Total Tax Due
-              </Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <SummaryBox
-                label="Gross Income"
-                value={formatCurrency(
-                  calculation.annualGross
-                )}
-              />
-              <SummaryBox
-                label="Net Income"
-                value={formatCurrency(
-                  calculation.annualNet
-                )}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.breakdownToggle}
-              onPress={() =>
-                setShowBreakdown(v => !v)
-              }
-            >
-              <Text style={{ fontWeight: '700' }}>
-                View Tax Breakdown
-              </Text>
-              <Ionicons
-                name={
-                  showBreakdown
-                    ? 'chevron-up'
-                    : 'chevron-down'
-                }
-                size={20}
-              />
-            </TouchableOpacity>
-
-            {showBreakdown && (
-              <View style={styles.breakdownCard}>
-                <Section title="Tax Calculation Breakdown" />
-
-                <Row
-                  label="Consolidated Relief Allowance (CRA)"
-                  value={`-${formatCurrency(calculation.CRA)}`}
+                  placeholder="₦ 0"
+                  placeholderTextColor="#94a3b8"
                 />
 
-                <Row
-                  label="• 20% of Gross Income"
-                  value={`-${formatCurrency(calculation.annualGross * 0.2)}`}
+                <Text style={[styles.inputLabel, { marginTop: 25 }]}>Tax Relief & Deductions</Text>
+
+                <DeductionToggle
+                  label="Pension (8%)"
+                  active={includePension}
+                  onPress={() => setIncludePension(!includePension)}
+                />
+                <DeductionToggle
+                  label="NHF (2.5%)"
+                  active={includeNHF}
+                  onPress={() => setIncludeNHF(!includeNHF)}
+                />
+                <DeductionToggle
+                  label="NHIS (5%)"
+                  active={includeNHIS}
+                  onPress={() => setIncludeNHIS(!includeNHIS)}
+                />
+                <DeductionToggle
+                  label="Rent Relief (Max ₦500k)"
+                  active={showRentInput}
+                  onPress={() => setShowRentInput(!showRentInput)}
                 />
 
-                <Row
-                  label="• Statutory Relief (₦200,000)"
-                  value={`-${formatCurrency(
-                    Math.max(200_000, calculation.annualGross * 0.01)
-                  )}`}
-                />
-
-                <Divider />
-
-                <Row
-                  label="Pension Deduction (8%)"
-                  value={`-${formatCurrency(calculation.deductions.pension)}`}
-                />
-                <Row
-                  label="NHF Deduction (2.5%)"
-                  value={`-${formatCurrency(calculation.deductions.nhf)}`}
-                />
-                <Row
-                  label="NHIS Deduction (5%)"
-                  value={`-${formatCurrency(calculation.deductions.nhis)}`}
-                />
-
-                <Row
-                  label="NHF Deduction (2.5%)"
-                  value={`-${formatCurrency(
-                    calculation.deductions.nhf
-                  )}`}
-                />
-                <Row
-                  label="Other Deductions"
-                  value={`-${formatCurrency(
-                    calculation.deductions.otherDeductions
-                  )}`}
-                />
-
-                <Divider />
-
-                <BoldRow
-                  label="Total Deductions"
-                  value={formatCurrency(calculation.deductions.total)}
-                />
-                <BoldRow
-                  label="Annual Taxable Income"
-                  value={formatCurrency(
-                    calculation.taxableIncome
-                  )}
-                />
-
-                <Section title="Break Down Your Tax" />
-
-                {calculation.breakdown.map((b, i) => (
-                  <Row
-                    key={i}
-                    label={`${b.range} @ ${b.rate}`}
-                    value={formatCurrency(b.tax)}
+                {showRentInput && (
+                  <TextInput
+                    style={[styles.mainInput, { marginTop: 10 }]}
+                    value={rentPaid}
+                    onChangeText={(t) => setRentPaid(formatInput(t))}
+                    keyboardType="numeric"
+                    placeholder="Annual Rent Paid"
+                    placeholderTextColor="#94a3b8"
                   />
-                ))}
+                )}
 
-                <Divider />
+                <Text style={[styles.inputLabel, { marginTop: 20 }]}>Other Deductions</Text>
+                <TextInput
+                  style={styles.mainInput}
+                  value={otherDeductions}
+                  onChangeText={(t) => setOtherDeductions(formatInput(t))}
+                  keyboardType="numeric"
+                  placeholder="₦ 0"
+                  placeholderTextColor="#94a3b8"
+                />
 
-                <BoldRow
-                  label="Total Annual Tax"
-                  value={formatCurrency(
-                    calculation.annualTax
-                  )}
-                  color={Colors.error}
-                />
-                <BoldRow
-                  label="Monthly Tax"
-                  value={formatCurrency(
-                    calculation.monthlyTax
-                  )}
-                />
+                <TouchableOpacity style={styles.proceedButton} onPress={handleCalculate}>
+                  <Text style={styles.proceedButtonText}>Proceed</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View>
+                <View style={styles.resultCard}>
+                  <Text style={styles.resultLabel}>Salaried (PAYE / PIT) Result</Text>
+                  <Text style={styles.resultValue}>{formatCurrency(calculation.annualTax)}</Text>
+                  <Text style={styles.totalTaxDueLabel}>Total Tax Due</Text>
+                </View>
+
+                <View style={styles.summaryRow}>
+                  <SummaryBox label="Gross Income" value={formatCurrency(calculation.annualGross)} />
+                  <SummaryBox label="Net Income" value={formatCurrency(calculation.annualNet)} />
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setShowBreakdown(!showBreakdown);
+                  }}
+                  style={styles.breakdownToggle}
+                >
+                  <Text style={{ fontWeight: '700' }}>View Tax Breakdown</Text>
+                  <Ionicons name={showBreakdown ? 'chevron-up' : 'chevron-down'} size={20} />
+                </TouchableOpacity>
+
+                {showBreakdown && (
+                  <View style={styles.breakdownCard}>
+                    <Text style={styles.breakdownTitle}>Tax Calculation Breakdown</Text>
+
+                    <DetailRow label="Rent Relief Deduction (20%)" value={`-#${(calculation.deductions.rentRelief).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <DetailRow label="Pension Deduction (8%)" value={`-#${(calculation.deductions.pension).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <DetailRow label="National Health Insurance Scheme Deduction (5%)" value={`-#${(calculation.deductions.nhis).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <DetailRow label="National Housing Fund (2.5%)" value={`-#${(calculation.deductions.nhf).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <DetailRow label="Other Deductions" value={`-#${(calculation.deductions.otherDeductions).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <DetailRow label="Other Expenses" value={`-#0.00`} />
+
+                    <DetailRow label="Total Deductions" value={`#${(calculation.deductions.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} bold />
+                    <DetailRow label="Annual Taxable Income" value={`#${(calculation.taxableIncome).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} bold />
+
+                    <View style={styles.divider} />
+
+                    <Text style={styles.breakdownSectionTitle}>Progressive Tax Band (Annual)</Text>
+                    <DetailRow label="#0 - #800,000" value="0%" />
+                    <DetailRow label="#800,001 - #3,000,000" value="15%" />
+                    <DetailRow label="#3,000,001 - #12,000,000" value="18%" />
+                    <DetailRow label="#12,000,001 - #25,000,000" value="21%" />
+                    <DetailRow label="#25,000,001 - #50,000,000" value="23%" />
+                    <DetailRow label="Above #50,000,000" value="25%" />
+
+                    <View style={styles.divider} />
+
+                    <Text style={styles.breakdownSectionTitle}>Break Down Your Tax</Text>
+                    <DetailRow label="First #800,000" value="#0" />
+                    <DetailRow
+                        label={`Taxable Remaining = #${calculation.taxableIncome.toLocaleString()} - #800,000`}
+                        value={`#${Math.max(0, calculation.taxableIncome - 800000).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                    />
+                    <DetailRow
+                        label={`Tax 15% of #${Math.max(0, calculation.taxableIncome - 800000).toLocaleString()}`}
+                        value={`#${calculation.annualTax.toLocaleString(undefined, { minimumFractionDigits: 0 })}`}
+                    />
+
+                    <View style={styles.divider} />
+
+                    <DetailRow label="Total Annual Tax" value={`#${(calculation.annualTax).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                    <DetailRow label="Monthly Tax" value={`#${(calculation.monthlyTax).toLocaleString(undefined, { minimumFractionDigits: 2 })}`} />
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.proceedButton, { marginTop: 30 }]}
+                  onPress={() => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setStep(1);
+                  }}
+                >
+                  <Text style={styles.proceedButtonText}>New Calculation</Text>
+                </TouchableOpacity>
               </View>
             )}
-
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                { marginTop: 30 },
-              ]}
-              onPress={resetCalculator}
-            >
-              <Text style={styles.primaryButtonText}>
-                Calculate Another Tax
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-/* ===================== UI HELPERS ===================== */
-const renderCheck = (
-  label: string,
-  value: boolean,
-  setValue: (v: boolean) => void
-) => (
-  <TouchableOpacity
-    onPress={() => setValue(!value)}
-    style={styles.checkRow}
-  >
-    <Text>{label}</Text>
-    <Ionicons
-      name={value ? 'checkbox' : 'square-outline'}
-      size={22}
-      color={Colors.primary}
-    />
-  </TouchableOpacity>
-);
+/* ===================== SUB-COMPONENTS ===================== */
 
-const Section = ({ title }: any) => (
-  <Text style={styles.sectionTitle}>{title}</Text>
-);
+function DeductionToggle({ label, active, onPress }: any) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.checkRow}>
+      <Text style={styles.checkLabel}>{label}</Text>
+      <Ionicons name={active ? 'checkbox' : 'square-outline'} size={24} color="#1e3a8a" />
+    </TouchableOpacity>
+  );
+}
 
-const Row = ({ label, value }: any) => (
-  <View style={styles.row}>
-    <Text style={styles.subtleText}>{label}</Text>
-    <Text style={styles.subtleText}>{value}</Text>
-  </View>
-);
+function SummaryBox({ label, value }: any) {
+  return (
+    <View style={styles.summaryBox}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
 
-const BoldRow = ({ label, value, color }: any) => (
-  <View style={styles.row}>
-    <Text style={styles.boldText}>{label}</Text>
-    <Text
-      style={[
-        styles.boldText,
-        color && { color },
-      ]}
-    >
-      {value}
-    </Text>
-  </View>
-);
+function DetailRow({ label, value, bold }: any) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={[styles.detailLabel, bold && { fontWeight: '600', color: '#1e293b' }]}>{label}</Text>
+      <Text style={[styles.detailValue, bold && { fontWeight: '700', color: '#1e293b' }]}>{value}</Text>
+    </View>
+  );
+}
 
-const Divider = () => (
-  <View style={styles.divider} />
-);
-
-const SummaryBox = ({ label, value }: any) => (
-  <View style={styles.summaryBox}>
-    <Text style={styles.subtleText}>{label}</Text>
-    <Text style={styles.boldText}>{value}</Text>
-  </View>
-);
-
-/* ===================== STYLES ===================== */
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  header: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.primary,
-    marginBottom: 20,
-  },
-  label: { fontWeight: '700', marginTop: 15 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 14,
-    marginTop: 6,
-  },
-  errorInput: { borderColor: Colors.error },
-  errorText: {
-    color: Colors.error,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  primaryButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 25,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  resultCard: {
-    alignItems: 'center',
-    marginVertical: 25,
-  },
-  resultLabel: {
-    color: Colors.secondaryText,
-    marginBottom: 6,
-  },
-  resultValue: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: Colors.primary,
-  },
-  subText: { color: Colors.secondaryText },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  summaryBox: {
-    flex: 1,
-    backgroundColor: '#f1f5f9',
-    padding: 14,
-    borderRadius: 12,
-  },
-  breakdownToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderWidth: 1,
-    borderRadius: 12,
-    borderColor: '#e2e8f0',
-  },
-  breakdownCard: {
-    backgroundColor: '#f8fafc',
-    padding: 18,
-    borderRadius: 14,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  sectionTitle: {
-    fontWeight: '800',
-    color: Colors.primary,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  subtleText: {
-    color: Colors.secondaryText,
-  },
-  boldText: {
-    fontWeight: '700',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 10,
-  },
+  scroll: { flexGrow: 1 },
+  headerContainer: { paddingHorizontal: 20, paddingTop: 10 },
+  backBtnContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  backBtnText: { color: '#1e3a8a', fontWeight: '600', marginLeft: 4 },
+  headerTextWrapper: { alignItems: 'center' },
+  title: { fontSize: 24, fontWeight: '800', color: '#1e3a8a' },
+  subtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
+  formContainer: { marginTop: 10 },
+  inputLabel: { fontSize: 15, fontWeight: '700', color: '#1e293b', marginBottom: 8 },
+  mainInput: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 15, fontSize: 16, backgroundColor: '#fcfcfc' },
+  checkRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  checkLabel: { fontSize: 14, color: '#475569', fontWeight: '500' },
+  proceedButton: { backgroundColor: '#1e3a8a', padding: 18, borderRadius: 10, alignItems: 'center', marginTop: 30 },
+  proceedButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  resultCard: { alignItems: 'center', paddingVertical: 30, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  resultLabel: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  resultValue: { fontSize: 36, fontWeight: '900', color: '#1e3a8a', marginVertical: 8 },
+  totalTaxDueLabel: { color: '#64748b', fontSize: 14 },
+  summaryRow: { flexDirection: 'row', gap: 12, marginVertical: 20 },
+  summaryBox: { flex: 1, backgroundColor: '#f1f5f9', padding: 16, borderRadius: 12 },
+  summaryLabel: { color: '#64748b', fontSize: 12, marginBottom: 4 },
+  summaryValue: { fontWeight: '800', fontSize: 15, color: '#000' },
+  breakdownToggle: { flexDirection: 'row', justifyContent: 'space-between', padding: 18, borderRadius: 12, backgroundColor: '#f1f5f9' },
+  breakdownCard: { padding: 20, borderRadius: 8, backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#d1d5db', marginTop: 15 },
+  breakdownTitle: { fontSize: 18, fontWeight: '700', color: '#1e3a8a', marginBottom: 20 },
+  breakdownSectionTitle: { fontSize: 15, fontWeight: '700', color: '#4b5563', marginTop: 10, marginBottom: 15 },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  detailLabel: { color: '#4b5563', fontSize: 13, flex: 1 },
+  detailValue: { color: '#4b5563', fontSize: 13, textAlign: 'right' },
+  divider: { height: 1, backgroundColor: '#d1d5db', marginVertical: 15 },
 });

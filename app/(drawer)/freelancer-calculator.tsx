@@ -233,8 +233,20 @@ export default function FreelancerTaxCalculator() {
 
                     <BreakdownRow label="Business Expenses (100%)" value={`-${formatCurrency(calculation.expensesVal)}`} />
                     <BreakdownRow label="Pension Deduction" value={`-${formatCurrency(calculation.pensionVal)}`} />
-                    <BreakdownRow label="Total Deductions" value={`-${formatCurrency(calculation.totalDeductions)}`} />
-                    <BreakdownRow label="Annual Taxable Income" value={formatCurrency(calculation.taxableIncome)} />
+
+                    {/* Horizontal Line added between Pension and Total Deductions */}
+                    <View style={{ marginVertical: 8, borderBottomWidth: 1, borderColor: '#e2e8f0', borderStyle: 'dashed' }} />
+
+                    <BreakdownRow
+                        label="Total Deductions"
+                        value={`${formatCurrency(calculation.totalDeductions)}`}
+                        bold
+                    />
+                    <BreakdownRow
+                        label="Annual Taxable Income"
+                        value={formatCurrency(calculation.taxableIncome)}
+                        bold
+                    />
 
                     <View style={{ marginVertical: 12, borderBottomWidth: 1, borderColor: Colors.border }} />
 
@@ -307,7 +319,13 @@ function SummaryCard({ label, value }: any) {
 function BreakdownRow({ label, value, bold, color }: any) {
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-      <Text style={{ fontSize: 13, color: Colors.secondaryText }}>{label}</Text>
+      <Text style={{
+        fontSize: 13,
+        color: bold ? Colors.text : Colors.secondaryText,
+        fontWeight: bold ? '700' : '400'
+      }}>
+        {label}
+      </Text>
       <Text
         style={{
           fontSize: 13,
