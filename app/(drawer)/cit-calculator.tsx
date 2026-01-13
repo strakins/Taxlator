@@ -18,7 +18,7 @@ import * as Sharing from 'expo-sharing';
 
 import { saveTaxRecord } from '@/utils/storage';
 import { formatCurrency } from '@/utils/formatter';
-import { Colors, styles as globalStyles } from '@/constants/calculatorstyles';
+import { Colors } from '@/constants/calculatorstyles';
 
 /* -----------------------------------------------------
    HELPERS
@@ -29,9 +29,6 @@ const format = (v: string) =>
     ? Number(v.replace(/[^0-9]/g, '')).toLocaleString()
     : '';
 
-/* -----------------------------------------------------
-   SCREEN
------------------------------------------------------ */
 export default function CITCalculator() {
   const router = useRouter();
 
@@ -42,22 +39,24 @@ export default function CITCalculator() {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   /* -----------------------------------------------------
-     CORE NIGERIAN CIT LOGIC (2026 SAFE)
+     NIGERIAN CIT LOGIC (2026 UPDATED)
   ----------------------------------------------------- */
   const calc = useMemo(() => {
     const gross = parse(revenue);
     const deductions = parse(expenses);
     const taxableIncome = Math.max(gross - deductions, 0);
 
-    const citRate =
-      size === 'large' ? 0.3 : size === 'medium' ? 0.2 : 0;
+    // CIT Rates: Small (0%), Medium (20%), Large (30%)
+    const citRate = size === 'large' ? 0.3 : size === 'medium' ? 0.2 : 0;
 
-    const educationTaxRate = size === 'small' ? 0 : 0.025;
+    // Development Levy (Replaces Education Tax in 2026): 4%
+    // Small companies are exempt (0%)
+    const devLevyRate = size === 'small' ? 0 : 0.04;
 
     const cit = taxableIncome * citRate;
-    const educationTax = taxableIncome * educationTaxRate;
+    const devLevy = taxableIncome * devLevyRate;
 
-    const totalTax = cit + educationTax;
+    const totalTax = cit + devLevy;
     const netIncome = taxableIncome - totalTax;
 
     return {
@@ -65,103 +64,102 @@ export default function CITCalculator() {
       deductions,
       taxableIncome,
       cit,
-      educationTax,
+      devLevy,
       totalTax,
       netIncome,
       citRate,
-      educationTaxRate,
+      devLevyRate,
     };
   }, [revenue, expenses, size]);
 
-  /* -----------------------------------------------------
-     SAVE + PROCEED
-  ----------------------------------------------------- */
   const handleProceed = async () => {
     if (!revenue) {
       Alert.alert('Missing Information', 'Enter company revenue');
       return;
     }
 
-    const record = {
-      id: Date.now().toString(),
-      type: 'CIT',
-      title: 'Company Income Tax',
-      userName: 'Corporate Entity',
-      income: calc.taxableIncome.toString(),
-      tax: calc.totalTax.toString(),
-      net: calc.netIncome.toString(),
-      date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      year: '2026',
-    };
+    // Save to local storage history
+    try {
+      const record = {
+        id: Date.now().toString(),
+        type: 'CIT',
+        title: `${size.toUpperCase()} Company Tax`,
+        userName: 'Corporate Entity',
+        income: calc.taxableIncome.toString(),
+        tax: calc.totalTax.toString(),
+        net: calc.netIncome.toString(),
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        year: '2026',
+      };
+      await saveTaxRecord(record);
+    } catch (e) {
+      console.error("Failed to save record", e);
+    }
 
-    await saveTaxRecord(record);
     setStep(2);
   };
 
-  /* -----------------------------------------------------
-     PDF
-  ----------------------------------------------------- */
   const downloadPDF = async () => {
-    const html = `
-      <html>
-        <body style="font-family:Helvetica;padding:40px;color:#1e293b">
-          <h2 style="text-align:center;color:${Colors.primary}">
-            Company Income Tax Result
-          </h2>
+    try {
+      const html = `
+        <html>
+          <body style="font-family:Helvetica;padding:40px;color:#1e293b">
+            <h2 style="text-align:center;color:${Colors.primary}">Corporate Tax Receipt</h2>
+            <p style="text-align:center;">${size.toUpperCase()} COMPANY CATEGORY</p>
+            <hr/>
+            <div style="margin: 20px 0;">
+              <p><strong>Gross Revenue:</strong> ${formatCurrency(calc.gross)}</p>
+              <p><strong>Allowable Expenses:</strong> ${formatCurrency(calc.deductions)}</p>
+              <p><strong>Taxable Profit:</strong> ${formatCurrency(calc.taxableIncome)}</p>
+            </div>
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px;">
+              <p>CIT Rate (${calc.citRate * 100}%): ${formatCurrency(calc.cit)}</p>
+              <p>Dev Levy (${calc.devLevyRate * 100}%): ${formatCurrency(calc.devLevy)}</p>
+              <h3 style="color:${Colors.primary}; border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                Total Tax Payable: ${formatCurrency(calc.totalTax)}
+              </h3>
+              <h3>Net Profit After Tax: ${formatCurrency(calc.netIncome)}</h3>
+            </div>
+            <p style="text-align:center; font-size:10px; margin-top:50px; color:#94a3b8;">
+              Generated by Taxlator Nigeria – 2026 Compliance Mode
+            </p>
+          </body>
+        </html>
+      `;
 
-          <p><strong>Total Tax Due:</strong> ${formatCurrency(calc.totalTax)}</p>
+      const result = await Print.printToFileAsync({ html });
 
-          <hr/>
-
-          <p>Gross Income: ${formatCurrency(calc.gross)}</p>
-          <p>Total Deductions: ${formatCurrency(calc.deductions)}</p>
-          <p>Taxable Income: ${formatCurrency(calc.taxableIncome)}</p>
-
-          <p>CIT (${calc.citRate * 100}%): ${formatCurrency(calc.cit)}</p>
-          <p>Education Tax (2.5%): ${formatCurrency(calc.educationTax)}</p>
-
-          <h3>Total Tax: ${formatCurrency(calc.totalTax)}</h3>
-          <h3>Net Income: ${formatCurrency(calc.netIncome)}</h3>
-
-          <p style="margin-top:40px;font-size:10px;text-align:center">
-            Generated by Taxlator Nigeria – 2026
-          </p>
-        </body>
-      </html>
-    `;
-
-    const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri);
+      if (result && result.uri) {
+        await Sharing.shareAsync(result.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Download Tax Receipt',
+          UTI: 'com.adobe.pdf',
+        });
+      }
+    } catch (error) {
+      Alert.alert("Error", "Could not generate or share the PDF receipt.");
+      console.error(error);
+    }
   };
 
-  /* -----------------------------------------------------
-     UI
-  ----------------------------------------------------- */
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 20 }}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.back}>
-              <Ionicons name="chevron-back" /> Back
-            </Text>
+            <Text style={styles.back}><Ionicons name="chevron-back" /> Back</Text>
           </TouchableOpacity>
 
           {step === 1 && (
             <View style={styles.card}>
               <Text style={styles.title}>Company Income Tax</Text>
-              <Text style={styles.subtitle}>
-                Calculate company income tax based on Nigerian CIT rates
-              </Text>
+              <Text style={styles.subtitle}>Select company size to apply 2026 Nigerian tax rates</Text>
 
-              <Text style={styles.label}>Revenue</Text>
+              <Text style={styles.label}>Annual Revenue</Text>
               <TextInput
                 value={revenue}
                 onChangeText={(t) => setRevenue(format(t))}
@@ -170,21 +168,26 @@ export default function CITCalculator() {
                 placeholder="₦ 0"
               />
 
-              <Text style={styles.label}>Company Size</Text>
-              {(['small', 'medium', 'large'] as const).map((s) => (
+              <Text style={styles.label}>Company Classification</Text>
+              {[
+                { id: 'small', label: 'SMALL', rate: '0%', desc: 'Turnover < ₦50m' },
+                { id: 'medium', label: 'MEDIUM', rate: '20%', desc: 'Turnover ₦50m - ₦100m' },
+                { id: 'large', label: 'LARGE', rate: '30%', desc: 'Turnover > ₦100m' },
+              ].map((item) => (
                 <TouchableOpacity
-                  key={s}
-                  onPress={() => setSize(s)}
-                  style={[
-                    styles.selector,
-                    size === s && styles.selectorActive,
-                  ]}
+                  key={item.id}
+                  onPress={() => setSize(item.id as any)}
+                  style={[styles.selector, size === item.id && styles.selectorActive]}
                 >
-                  <Text>{s.toUpperCase()} COMPANY</Text>
+                  <View style={styles.selectorRow}>
+                    <Text style={styles.selectorLabel}>{item.label} COMPANY</Text>
+                    <Text style={styles.selectorRate}>{item.rate} CIT</Text>
+                  </View>
+                  <Text style={styles.selectorDesc}>{item.desc}</Text>
                 </TouchableOpacity>
               ))}
 
-              <Text style={styles.label}>Business Expenses</Text>
+              <Text style={styles.label}>Operating Expenses</Text>
               <TextInput
                 value={expenses}
                 onChangeText={(t) => setExpenses(format(t))}
@@ -193,83 +196,44 @@ export default function CITCalculator() {
                 placeholder="₦ 0"
               />
 
-              <TouchableOpacity
-                style={styles.primary}
-                onPress={handleProceed}
-              >
-                <Text style={styles.primaryText}>Proceed</Text>
+              <TouchableOpacity style={styles.primary} onPress={handleProceed}>
+                <Text style={styles.primaryText}>Calculate Tax</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {step === 2 && (
-            <>
-              <View style={styles.resultCard}>
-                <Text style={styles.resultTitle}>
-                  Company Income Tax Result
-                </Text>
-                <Text style={styles.resultValue}>
-                  {formatCurrency(calc.totalTax)}
-                </Text>
-                <Text style={styles.smallText}>Total Tax Due</Text>
+            <View style={styles.resultCard}>
+              <Text style={styles.resultTitle}>Total Tax Due ({size.toUpperCase()})</Text>
+              <Text style={styles.resultValue}>{formatCurrency(calc.totalTax)}</Text>
 
-                <View style={styles.row}>
-                  <ResultBox
-                    label="Gross Income"
-                    value={calc.gross}
-                  />
-                  <ResultBox
-                    label="Net Income"
-                    value={calc.netIncome}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={styles.breakBtn}
-                  onPress={() => setShowBreakdown(!showBreakdown)}
-                >
-                  <Text>View Tax Breakdown</Text>
-                  <Ionicons
-                    name={
-                      showBreakdown ? 'chevron-up' : 'chevron-down'
-                    }
-                  />
-                </TouchableOpacity>
-
-                {showBreakdown && (
-                  <View style={styles.breakdown}>
-                    <Break label="Business Expenses" value={-calc.deductions} />
-                    <Break label="Taxable Income" value={calc.taxableIncome} />
-                    <Break label="CIT" value={calc.cit} />
-                    <Break
-                      label="Education Tax"
-                      value={calc.educationTax}
-                    />
-                    <Break
-                      label="Total Tax"
-                      value={calc.totalTax}
-                      bold
-                    />
-                  </View>
-                )}
+              <View style={styles.row}>
+                <ResultBox label="Taxable Profit" value={calc.taxableIncome} />
+                <ResultBox label="Net Income" value={calc.netIncome} />
               </View>
 
-              <TouchableOpacity
-                style={styles.primary}
-                onPress={() => setStep(1)}
-              >
-                <Text style={styles.primaryText}>
-                  Calculate Another Tax
-                </Text>
+              <TouchableOpacity style={styles.breakBtn} onPress={() => setShowBreakdown(!showBreakdown)}>
+                <Text style={{fontWeight: '700'}}>View Tax Breakdown</Text>
+                <Ionicons name={showBreakdown ? 'chevron-up' : 'chevron-down'} size={18} />
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.primary, { backgroundColor: Colors.accent }]}
-                onPress={downloadPDF}
-              >
+              {showBreakdown && (
+                <View style={styles.breakdown}>
+                  <Break label={`CIT Rate (${calc.citRate * 100}%)`} value={calc.cit} />
+                  <Break label={`Dev. Levy (${calc.devLevyRate * 100}%)`} value={calc.devLevy} />
+                  <View style={styles.divider} />
+                  <Break label="Total Tax Payable" value={calc.totalTax} bold />
+                </View>
+              )}
+
+              <TouchableOpacity style={styles.primary} onPress={() => setStep(1)}>
+                <Text style={styles.primaryText}>New Calculation</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.primary, { backgroundColor: '#0ea5e9' }]} onPress={downloadPDF}>
                 <Text style={styles.primaryText}>Download Receipt</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -277,9 +241,6 @@ export default function CITCalculator() {
   );
 }
 
-/* -----------------------------------------------------
-   SMALL COMPONENTS
------------------------------------------------------ */
 const ResultBox = ({ label, value }: any) => (
   <View style={styles.resultBox}>
     <Text style={styles.smallText}>{label}</Text>
@@ -289,96 +250,37 @@ const ResultBox = ({ label, value }: any) => (
 
 const Break = ({ label, value, bold }: any) => (
   <View style={styles.breakRow}>
-    <Text>{label}</Text>
-    <Text style={{ fontWeight: bold ? '800' : '600' }}>
+    <Text style={{color: '#475569'}}>{label}</Text>
+    <Text style={{ fontWeight: bold ? '900' : '700', color: bold ? Colors.primary : '#1e293b' }}>
       {formatCurrency(value)}
     </Text>
   </View>
 );
 
-/* -----------------------------------------------------
-   STYLES
------------------------------------------------------ */
 const styles = StyleSheet.create({
-  back: {
-    color: Colors.primary,
-    marginBottom: 10,
-    fontWeight: '700',
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  title: { fontSize: 20, fontWeight: '800', color: Colors.primary },
-  subtitle: { fontSize: 12, color: Colors.secondaryText, marginBottom: 20 },
-  label: { fontWeight: '700', marginTop: 15 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 5,
-  },
-  selector: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginTop: 8,
-  },
-  selectorActive: {
-    backgroundColor: '#eff6ff',
-    borderColor: Colors.primary,
-  },
-  primary: {
-    backgroundColor: Colors.primary,
-    padding: 16,
-    borderRadius: 10,
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  primaryText: { color: '#fff', fontWeight: '800' },
-
-  resultCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  resultTitle: { textAlign: 'center', color: '#64748b' },
-  resultValue: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: Colors.primary,
-    textAlign: 'center',
-  },
-  smallText: { fontSize: 11, color: '#64748b', textAlign: 'center' },
-  row: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  resultBox: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    padding: 15,
-    borderRadius: 10,
-  },
-  boxValue: { fontWeight: '800', marginTop: 4 },
-  breakBtn: {
-    marginTop: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  breakdown: {
-    marginTop: 15,
-    backgroundColor: '#f8fafc',
-    padding: 15,
-    borderRadius: 10,
-  },
-  breakRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
+  back: { color: Colors.primary, marginBottom: 15, fontWeight: '700' },
+  card: { backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+  title: { fontSize: 22, fontWeight: '900', color: Colors.primary },
+  subtitle: { fontSize: 13, color: '#64748b', marginBottom: 10 },
+  label: { fontWeight: '800', marginTop: 20, color: '#1e293b', fontSize: 14 },
+  input: { borderWidth: 1.5, borderColor: '#f1f5f9', padding: 14, borderRadius: 12, marginTop: 8, backgroundColor: '#f8fafc', fontSize: 16 },
+  selector: { padding: 15, borderRadius: 12, borderWidth: 1.5, borderColor: '#f1f5f9', marginTop: 10, backgroundColor: '#fff' },
+  selectorActive: { backgroundColor: '#f0f7ff', borderColor: Colors.primary },
+  selectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  selectorLabel: { fontWeight: '800', fontSize: 14, color: '#1e293b' },
+  selectorRate: { fontWeight: '900', color: Colors.primary, fontSize: 14 },
+  selectorDesc: { fontSize: 11, color: '#64748b', marginTop: 2 },
+  primary: { backgroundColor: Colors.primary, padding: 18, borderRadius: 14, marginTop: 15, alignItems: 'center' },
+  primaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  resultCard: { backgroundColor: '#fff', borderRadius: 24, padding: 24, borderWidth: 1, borderColor: '#f1f5f9' },
+  resultTitle: { textAlign: 'center', color: '#64748b', fontWeight: '600', fontSize: 14 },
+  resultValue: { fontSize: 36, fontWeight: '900', color: Colors.primary, textAlign: 'center', marginVertical: 10 },
+  row: { flexDirection: 'row', gap: 12, marginTop: 10 },
+  resultBox: { flex: 1, backgroundColor: '#f8fafc', padding: 16, borderRadius: 16, alignItems: 'center' },
+  smallText: { fontSize: 11, color: '#64748b', fontWeight: '600' },
+  boxValue: { fontWeight: '800', fontSize: 14, marginTop: 5, color: '#1e293b' },
+  breakBtn: { marginTop: 25, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 5 },
+  breakdown: { marginTop: 15, backgroundColor: '#f8fafc', padding: 20, borderRadius: 18 },
+  breakRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  divider: { height: 1, backgroundColor: '#e2e8f0', marginVertical: 10 },
 });
