@@ -103,6 +103,15 @@ export default function CITCalculator() {
     setStep(2);
   };
 
+  const resetCalculator = () => {
+    setRevenue('');
+    setExpenses('');
+    setSize('small');      // default company size
+    setShowBreakdown(false);
+    setStep(1);
+  };
+
+
   const downloadPDF = async () => {
     try {
       const html = `
@@ -151,8 +160,8 @@ export default function CITCalculator() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 20 }}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.back}><Ionicons name="chevron-back" /> Back</Text>
-          </TouchableOpacity>
+              <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
+            </TouchableOpacity>
 
           {step === 1 && (
             <View style={styles.card}>
@@ -226,9 +235,10 @@ export default function CITCalculator() {
                 </View>
               )}
 
-              <TouchableOpacity style={styles.primary} onPress={() => setStep(1)}>
-                <Text style={styles.primaryText}>New Calculation</Text>
-              </TouchableOpacity>
+            <TouchableOpacity style={styles.primary} onPress={resetCalculator}>
+              <Text style={styles.primaryText}>New Calculation</Text>
+            </TouchableOpacity>
+
 
               <TouchableOpacity style={[styles.primary, { backgroundColor: '#0ea5e9' }]} onPress={downloadPDF}>
                 <Text style={styles.primaryText}>Download Receipt</Text>
@@ -258,7 +268,21 @@ const Break = ({ label, value, bold }: any) => (
 );
 
 const styles = StyleSheet.create({
-  back: { color: Colors.primary, marginBottom: 15, fontWeight: '700' },
+  back: { 
+    color: Colors.primary, 
+    marginBottom: 15, 
+    fontWeight: '700' 
+  },
+  backText: { 
+    color: Colors.card, 
+    fontWeight: '700',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 5,
+    width: 60,
+    marginBottom: 20
+  },
   card: { backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
   title: { fontSize: 22, fontWeight: '900', color: Colors.primary },
   subtitle: { fontSize: 13, color: '#64748b', marginBottom: 10 },

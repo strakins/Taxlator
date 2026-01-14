@@ -123,6 +123,16 @@ export default function FreelancerTaxCalculator() {
     setStep(2);
   };
 
+  const resetCalculator = () => {
+    setGrossIncome('');
+    setPension('');
+    setBusinessExpenses('');
+
+    setShowBreakdown(false);
+    setStep(1);
+  };
+
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['left', 'right', 'bottom']}>
@@ -279,12 +289,13 @@ export default function FreelancerTaxCalculator() {
 
                 <TouchableOpacity
                   style={[globalStyles.primaryButton, { marginTop: 25 }]}
-                  onPress={() => setStep(1)}
+                  onPress={resetCalculator}
                 >
                   <Text style={globalStyles.primaryButtonText}>
                     Calculate Another Tax
                   </Text>
                 </TouchableOpacity>
+
               </>
             )}
           </View>

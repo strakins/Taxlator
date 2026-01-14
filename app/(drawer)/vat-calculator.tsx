@@ -97,6 +97,16 @@ export default function VATCalculator() {
     setStep(2);
   };
 
+  const resetCalculator = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    setAmount('');
+    setIsAddingVAT(true);
+    setSelectedIds(['domestic']); // default selection
+    setShowBreakdown(false);
+    setStep(1);
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -104,9 +114,8 @@ export default function VATCalculator() {
 
           {/* Header Section */}
           <View style={styles.headerContainer}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtnContainer}>
-               <Ionicons name="chevron-back-outline" size={18} color="#153d8a" />
-               <Text style={styles.backBtnText}>Back</Text>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
             </TouchableOpacity>
 
             <View style={styles.headerTextWrapper}>
@@ -232,10 +241,11 @@ export default function VATCalculator() {
 
                 <TouchableOpacity
                   style={[styles.proceedButton, { marginTop: 30 }]}
-                  onPress={() => setStep(1)}
+                  onPress={resetCalculator}
                 >
                   <Text style={styles.proceedButtonText}>New Calculation</Text>
                 </TouchableOpacity>
+
               </View>
             )}
           </View>
@@ -266,12 +276,41 @@ function DetailRow({ label, value, bold }: any) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  headerContainer: { paddingHorizontal: 20, paddingTop: 10 },
-  backBtnContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  backBtnText: { color: '#153d8a', fontWeight: '600', marginLeft: 4 },
-  headerTextWrapper: { alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '800', color: '#153d8a', textAlign: 'center' },
+  scroll: { 
+    flexGrow: 1 
+  },
+  backText: { 
+    color: Colors.card, 
+    fontWeight: '700',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 5,
+    width: 60
+  },
+  headerContainer: { 
+    paddingHorizontal: 20, 
+    paddingTop: 10 
+  },
+  backBtnContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 10 
+  },
+  backBtnText: { 
+    color: '#153d8a', 
+    fontWeight: '600', 
+    marginLeft: 4 
+  },
+  headerTextWrapper: { 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 22, 
+    fontWeight: '800', 
+    color: '#153d8a', 
+    textAlign: 'center' 
+  },
   subtitle: { fontSize: 13, color: '#64748b', textAlign: 'center', marginTop: 8, paddingHorizontal: 30 },
   formContainer: { marginTop: 10 },
   inputLabel: { fontSize: 16, fontWeight: '700', color: '#000', marginBottom: 8 },

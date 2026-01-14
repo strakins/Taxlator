@@ -78,6 +78,22 @@ export default function PAYECalculator() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setStep(2);
   };
+  const resetCalculator = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+    setGrossIncome('');
+    setRentPaid('');
+    setOtherDeductions('');
+
+    setIncludePension(true);
+    setIncludeNHF(true);
+    setIncludeNHIS(true);
+    setShowRentInput(false);
+
+    setShowBreakdown(false);
+    setStep(1);
+  };
+
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -86,9 +102,8 @@ export default function PAYECalculator() {
 
           {/* Header Section */}
           <View style={styles.headerContainer}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtnContainer}>
-               <Ionicons name="chevron-back-outline" size={18} color="#1e3a8a" />
-               <Text style={styles.backBtnText}>Back</Text>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
             </TouchableOpacity>
 
             <View style={styles.headerTextWrapper}>
@@ -230,13 +245,11 @@ export default function PAYECalculator() {
 
                 <TouchableOpacity
                   style={[styles.proceedButton, { marginTop: 30 }]}
-                  onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setStep(1);
-                  }}
+                  onPress={resetCalculator}
                 >
                   <Text style={styles.proceedButtonText}>New Calculation</Text>
                 </TouchableOpacity>
+
               </View>
             )}
           </View>
@@ -276,13 +289,47 @@ function DetailRow({ label, value, bold }: any) {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1 },
-  headerContainer: { paddingHorizontal: 20, paddingTop: 10 },
-  backBtnContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  backBtnText: { color: '#1e3a8a', fontWeight: '600', marginLeft: 4 },
-  headerTextWrapper: { alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: '800', color: '#1e3a8a' },
-  subtitle: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
+  scroll: { 
+    flexGrow: 1 
+  },
+  backText: { 
+    color: Colors.card, 
+    fontWeight: '700',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 5,
+    width: 60
+  },
+  headerContainer: { 
+    paddingHorizontal: 20, 
+    paddingTop: 10 
+  },
+  backBtnContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 5 
+  },
+  backBtnText: { 
+    color: '#1e3a8a', 
+    fontWeight: '600', 
+    marginLeft: 4 
+  },
+  headerTextWrapper: { 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: '800', 
+    color: '#1e3a8a' 
+  },
+  subtitle: { 
+    fontSize: 14, 
+    color: '#64748b', 
+    textAlign: 'center', 
+    marginTop: 8, 
+    paddingHorizontal: 20 
+  },
   formContainer: { marginTop: 10 },
   inputLabel: { fontSize: 15, fontWeight: '700', color: '#1e293b', marginBottom: 8 },
   mainInput: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 15, fontSize: 16, backgroundColor: '#fcfcfc' },
