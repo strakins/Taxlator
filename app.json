@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "strakins",
     "name": "Taxlator",
     "slug": "taxlator",
     "version": "1.0.1",
@@ -7,13 +8,13 @@
     "icon": "./assets/images/icon.png",
     "scheme": "taxlator",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hilosthone.taxlator"
+      "bundleIdentifier": "com.taxlator.app"
     },
     "android": {
-      "package": "com.hilosthone.taxlator",
+      "package": "com.taxlator.app",
       "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
@@ -32,18 +33,20 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "0115d1f5-30e6-4c04-b126-36bd38ba3975"
-      }
-    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/0115d1f5-30e6-4c04-b126-36bd38ba3975"
+      "url": "https://u.expo.dev/68c614e7-bce4-4830-ab72-e9e04c09535c"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "68c614e7-bce4-4830-ab72-e9e04c09535c"
+      }
     }
   }
 }

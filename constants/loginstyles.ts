@@ -1,54 +1,34 @@
 import { StyleSheet } from "react-native";
 
 const styles = StyleSheet.create({
-  inputSet: {
-    width: "74%",
-    gap: 2,
+  card: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%'
   },
-  inputSetLabel: {
-    fontSize: 15,
-    color: "#000000",
+  title: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  subtitle: { color: '#64748b', textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 13, marginTop: 12 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
   },
-  textInput: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
-    borderColor: "#A2A2A2",
-    padding: 7,
+  primaryBtn: {
+    marginTop: 24,
+    backgroundColor: '#143f8f',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
   },
-  inputSetDescription: {
-    fontSize: 12,
-    color: "#747373",
-  },
-  eyecon: {
-    position: "absolute",
-    left: "90%",
-    top: "50%",
-    transform: "translate(-50%,-50%)",
-  },
-  passwordInputContainer: {
-    position: "relative",
-  },
-  checkBoxContainer: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "center",
-  },
-  checkBoxText: {
-    fontSize: 12,
-  },
-  button: {
-    width: "74%",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
-    borderColor: "#A2A2A2",
-    padding: 7,
-    textAlign: "center",
-  },
-  buttonText: {
-    textAlign: "center",
-    fontSize: 20,
-    fontWeight: 400,
-  },
+  primaryText: { color: '#fff', fontWeight: '700' },
+  link: { marginTop: 16, textAlign: 'center' },
+  linkBold: { color: '#2563eb', fontWeight: '700' },
+
 });
 
 export default styles;

@@ -191,7 +191,7 @@ const TipCard = ({ image, tag, title, description }) => (
       <Text style={styles.tipTitle}>{title}</Text>
       <Text style={styles.tipDescription}>{description}</Text>
 
-      <Text style={styles.readMore}>Read More →</Text>
+      <Text style={styles.readMore}>Read More <Ionicons name='arrow-forward' /> (Coming Soon)</Text>
     </View>
   </View>
 );

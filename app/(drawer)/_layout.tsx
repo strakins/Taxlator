@@ -1,15 +1,20 @@
 import { Drawer } from 'expo-router/drawer';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Colors } from '@/constants/calculatorstyles';
 import { Ionicons } from '@expo/vector-icons';
 
 // Custom drawer content with Branding and Links
 function CustomDrawerContent(props: any) {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['left', 'right', 'bottom']}>
-      <DrawerContentScrollView {...props} contentContainerStyle={{ paddingTop: 0 }}>
+      <DrawerContentScrollView 
+       {...props}
+        contentContainerStyle={{
+          paddingTop: 0,
+          flex: 1,
+          backgroundColor: '#fff',
+        }}
+      >
         
         {/* ENHANCED HEADER */}
         <View style={styles.drawerHeader}>
@@ -54,7 +59,7 @@ function CustomDrawerContent(props: any) {
           <Text style={styles.footerText}>Developed for Nigeria 🇳🇬</Text>
         </View>
       </DrawerContentScrollView>
-    </SafeAreaView>
+    
   );
 }
 
@@ -70,7 +75,8 @@ export default function Layout() {
         drawerLabelStyle: { fontSize: 15, fontWeight: '600' },
         headerStyle: { backgroundColor: Colors.primary },
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' }
+        headerTitleStyle: { fontWeight: 'bold' },
+        headerStatusBarHeight: Platform.OS === 'android' ? 0 : undefined,
       }}
     >
       <Drawer.Screen

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   View,
@@ -18,6 +18,8 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
+import { Colors } from '@/constants/landingpagestyles';
+import { AuthProvider } from '@/store/useAuth';
 
 // Prevent the splash screen from auto-hiding before our custom logic is ready
 SplashScreen.preventAutoHideAsync();
@@ -85,7 +87,7 @@ export default function RootLayout() {
   /* 1. CUSTOM SPLASH SCREEN UI */
   if (showSplash) {
     return (
-      <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
         <StatusBar
           barStyle="light-content"
           translucent
@@ -141,13 +143,13 @@ export default function RootLayout() {
             </Animated.View>
           </ImageBackground>
         </View>
-      </SafeAreaProvider>
+      </SafeAreaView>
     );
   }
 
   /* 2. ACTUAL APP NAVIGATION STACK */
   return (
-    <SafeAreaProvider>
+    // <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar
           barStyle="dark-content"
@@ -155,9 +157,10 @@ export default function RootLayout() {
           translucent={false}
         />
 
+        <AuthProvider>
         <Stack screenOptions={{ headerShown: false }}>
           {/* Main entry is the drawer navigator */}
-          <Stack.Screen name="(drawer)" />
+            <Stack.Screen name="(drawer)" />
 
           {/* Error handling for missing routes */}
           <Stack.Screen
@@ -167,10 +170,11 @@ export default function RootLayout() {
               title: 'Page Not Found',
               headerTitleStyle: { fontFamily: 'Inter_700Bold' }
             }}
-          />
+            />
         </Stack>
+        </AuthProvider>
       </GestureHandlerRootView>
-    </SafeAreaProvider>
+    // </SafeAreaProvider>
   );
 }
 

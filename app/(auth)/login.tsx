@@ -1,54 +1,50 @@
-import Button from "@/components/button";
-import InputSet from "@/components/inputSet";
-import PasswordInputSet from "@/components/passwordInputSet";
-import { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { useAuthStore } from '@/store/auth.store';
+import styles from '@/constants/loginstyles';
 
-const Login = function () {
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState(false);
-  const [PasswordError, setPasswordError] = useState(false);
-  const [password, setPassword] = useState("");
+export default function LoginScreen() {
+  const router = useRouter();
+  const login = useAuthStore((s) => s.login);
 
-  const submitDetails = () => {
-    if (!email) {
-      setEmailError(true);
-      return;
-    }
-    if (!password) {
-      setPasswordError(true);
-      return;
-    }
+  const [emailOrPhone, setValue] = useState('');
+  const [password, setPassword] = useState('');
 
-    const loginData = { email, password };
-    // send loginData to backend ere
-  };
   return (
-    <View style={styles.subScreen}>
-      <InputSet
-        label="Your Email/Phone Number"
-        inputSetDescription="Enter your Email/Phone Number"
-        onChangeText={(text: string) => setEmail(text)}
+    <View style={styles.card}>
+      <Text style={styles.title}>Welcome back!</Text>
+      <Text style={styles.subtitle}>Sign in your account</Text>
+
+      <Text style={styles.label}>Your Email/Phone Number</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter your email and phone number"
+        value={emailOrPhone}
+        onChangeText={setValue}
       />
-      <PasswordInputSet
-        label="Password"
-        inputSetDescription="Enter your Email/Phone Number"
-        onChangeText={(text: string) => setPassword(text)}
-        hasCheck={true}
-        checkboxText="Remember me"
-        isForLogin={true}
+
+      <Text style={styles.label}>Password</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter your password"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
       />
-      <Button onPress={submitDetails} title="Sign In" />
+
+      <TouchableOpacity
+        style={styles.primaryBtn}
+        onPress={() => login({ emailOrPhone, password })}
+      >
+        <Text style={styles.primaryText}>Sign In</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
+        <Text style={styles.link}>
+          Don’t have an account yet? <Text style={styles.linkBold}>Sign up</Text>
+        </Text>
+      </TouchableOpacity>
     </View>
   );
-};
-
-export default Login;
-
-const styles = StyleSheet.create({
-  subScreen: {
-    width: "100%",
-    alignItems: "center",
-    gap: 15,
-  },
-});
+}

@@ -28,23 +28,7 @@ export default function AuthLayout() {
         experimentalBlurMethod="dimezisBlurView"
       >
         <View style={styles.card}>
-          <View style={styles.textContainer}>
-            <Text style={styles.headText}>{headText}</Text>
-            <Text style={styles.subText}>{subText}</Text>
-          </View>
           <Slot />
-          <TouchableOpacity
-            onPress={() => {
-              if (pathName.includes("login")) {
-                router.push("/(auth)/signup");
-              }
-              if (pathName.includes("signup")) {
-                router.push("/(auth)/login");
-              }
-            }}
-          >
-            <Text style={styles.footText}>{footText}</Text>
-          </TouchableOpacity>
         </View>
       </BlurView>
     </KeyboardAvoidingView>

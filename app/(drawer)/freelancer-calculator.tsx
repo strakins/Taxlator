@@ -146,7 +146,7 @@ export default function FreelancerTaxCalculator() {
               <Text style={styles.backText}> <Ionicons name='chevron-back-outline' /> Back</Text>
             </TouchableOpacity>
             <Text style={{ fontSize: 24, fontWeight: '800', marginTop: 10, color: Colors.primary }}>
-              Freelancers / Self-Employed (PIT)
+              Freelancer / Self-Employed (PIT)
             </Text>
           </View>
 
